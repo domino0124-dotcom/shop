@@ -304,7 +304,7 @@ function trow(x) {
   return `<tr class="${x._on ? '' : 'off'}" data-row="${esc(x.i)}"><td><input type="checkbox" class="sel" data-id="${esc(x.i)}"></td><td><img src="${img(x.im && x.im[0], 1)}" loading="lazy" alt=""></td>
     <td><a class="nm ed" href="#edit/${encodeURIComponent(x.i)}" data-id="${esc(x.i)}" title="Ctrl＋點擊可在新分頁編輯">${tag}${esc(x.n)}</a></td><td class="sub">${esc(x.c || '')}</td>
     <td class="pr">${x.p === x.P ? money(x.p) : money(x.p) + '–' + Number(x.P).toLocaleString()}</td>
-    <td>${x._on ? '<span class="tag c">上架中</span>' : '<span class="tag h">已下架</span>'}</td>
+    <td>${x._on ? '<span class="tag c">上架中</span>' : '<span class="tag h">已下架</span>'}${x.fs ? ' <span class="tag c">免運</span>' : ''}</td>
     <td class="ac"><a class="btn sm ed" href="#edit/${encodeURIComponent(x.i)}" data-id="${esc(x.i)}" title="Ctrl＋點擊可在新分頁編輯">編輯</a><button class="btn sm gray" data-a="tog" data-id="${esc(x.i)}">${x._on ? '下架' : '上架'}</button></td></tr>`;
 }
 const cleanItem = x => { const o = {}; Object.keys(x).forEach(k => { if (k[0] !== '_') o[k] = x[k]; }); return JSON.parse(JSON.stringify(o)); };
@@ -327,6 +327,7 @@ function bulkBar(list) {
         <select id="br" hidden><option value="1">取整到 1 元</option><option value="10">取整到 10 元</option></select></span>
       <span class="grp"><select id="bs"><option value="">庫存不變</option><option value="set">庫存設為</option><option value="ok">改成有貨</option><option value="0">改成售完</option></select><input id="bsv" type="number" inputmode="numeric" hidden></span>
       <button class="btn sm gray" id="bc" data-c="">分類不變</button>
+      <select id="bf"><option value="">免運不變</option><option value="1">設為免運</option><option value="0">取消免運</option></select>
       <select id="bo"><option value="">上下架不變</option><option value="on">全部上架</option><option value="off">全部下架</option></select>
       <button class="btn sm solid" id="bgo">套用</button><button class="btn sm gray" id="bx">取消選取</button>`;
     document.body.appendChild(bar);
@@ -340,19 +341,19 @@ function bulkBar(list) {
 }
 async function applyBulk() {
   const pm = $('#bp').value, pv = Number($('#bpv').value), rd = Number($('#br').value) || 1;
-  const sm = $('#bs').value, sv = Number($('#bsv').value), cat = $('#bc').dataset.c, on = $('#bo').value;
+  const sm = $('#bs').value, sv = Number($('#bsv').value), cat = $('#bc').dataset.c, on = $('#bo').value, fsv = $('#bf').value;
   if (pm && (!$('#bpv').value || isNaN(pv))) return toast('請輸入價格數字');
   if (pm === 'pct' && !(pv > 0 && pv <= 200)) return toast('打折請輸入 1～200，例如 95 代表 95 折');
   if (sm === 'set' && ($('#bsv').value === '' || sv < 0)) return toast('請輸入庫存數字');
-  if (!pm && !sm && !cat && !on) return toast('請先選要改的項目');
+  if (!pm && !sm && !cat && !on && !fsv) return toast('請先選要改的項目');
   const all = {}; allItems().forEach(x => all[x.i] = x);
   const ids = [...SEL].filter(i => all[i]);
   const desc = [pm && { set: `價格設為 ${pv}`, add: `價格${pv >= 0 ? '加' : '減'} ${Math.abs(pv)} 元`, pct: `價格打 ${pv} 折（×${pv / 100}）` }[pm],
-    sm && { set: `庫存設為 ${sv}`, ok: '庫存改成有貨', 0: '庫存改成售完' }[sm], cat && `分類改成「${cat}」`, on && (on === 'on' ? '全部上架' : '全部下架')].filter(Boolean).join('、');
+    sm && { set: `庫存設為 ${sv}`, ok: '庫存改成有貨', 0: '庫存改成售完' }[sm], cat && `分類改成「${cat}」`, fsv && (fsv === '1' ? '設為免運' : '取消免運'), on && (on === 'on' ? '全部上架' : '全部下架')].filter(Boolean).join('、');
   if (!confirm(`要把 ${ids.length} 件商品：\n${desc}\n\n確定嗎？`)) return;
   const btn = $('#bgo'); btn.disabled = true;
   try {
-    const onlyToggle = !pm && !sm && !cat;
+    const onlyToggle = !pm && !sm && !cat && !fsv;
     if (onlyToggle) { btn.textContent = '儲存中…'; await api('toggle_many', { list: ids.map(i => ({ id: i, on: on === 'on', name: all[i].n })) }); }
     else {
       const items = ids.map(i => {
@@ -362,6 +363,7 @@ async function applyBulk() {
           if (sm === 'set') st = sv; else if (sm === 'ok') st = st > 0 ? st : 99; else if (sm === '0') st = 0;
           return [v[0], Math.max(1, Math.round(p)), st, v[3]]; });
         if (cat) it.c = cat;
+        if (fsv) it.fs = fsv === '1' ? 1 : 0;
         return { item: it, on: on ? on === 'on' : x._on, src: BASE[i] ? 'shopee' : 'custom' };
       });
       await saveMany(items, btn);
@@ -445,6 +447,7 @@ async function viewEdit(x) {
     <label class="f"><span>商品名稱 *</span><input id="n" value="${esc(it.n)}" placeholder="例：APEXX 煞車拉桿 勁戰六代"></label>
     <label class="f"><span>分類</span><button type="button" class="pick" id="cbtn"></button></label>
     <label class="f sw" style="margin-top:14px"><input type="checkbox" id="on"${on ? ' checked' : ''}> 上架中（取消勾選＝下架，客人看不到）</label>
+    <label class="f sw" style="margin-top:8px"><input type="checkbox" id="fs"${it.fs ? ' checked' : ''}> 免運（買這個商品，7-11 整筆免運）</label>
   </div>
   <div class="box"><h2>規格與價格 *</h2>
     <label class="f" style="margin-top:0"><span>規格名稱（例：顏色、車種；沒有規格可留空）</span><input id="t" value="${esc(it.t || '')}"></label>
@@ -503,7 +506,7 @@ async function viewEdit(x) {
 
   $('#save').onclick = async () => {
     const er = $('#er'); er.textContent = '';
-    const item = { i: isNew ? '' : it.i, n: $('#n').value.trim(), c: curCat, t: $('#t').value.trim(), im: ims, d: $('#d').value.trim(),
+    const item = { i: isNew ? '' : it.i, fs: $('#fs').checked ? 1 : 0, n: $('#n').value.trim(), c: curCat, t: $('#t').value.trim(), im: ims, d: $('#d').value.trim(),
       v: vs.filter(v => String(v[0]).trim() || String(v[1]).trim()).map(v => [String(v[0]).trim(), Number(v[1]), v[2] === '' ? '' : Number(v[2]), v[3] || '']) };
     if (!item.n) return er.textContent = '請填寫商品名稱';
     if (!item.im.length) return er.textContent = '請至少上傳 1 張圖片';

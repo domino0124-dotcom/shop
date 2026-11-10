@@ -56,6 +56,7 @@ select.sort{font:inherit;font-size:13px;border:1px solid var(--line);background:
 .pc .nm{font-size:13.5px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.8em}
 .price{color:var(--accent);font-weight:800}
 .pc .price{margin-top:auto;font-size:15px}
+.fsb{display:inline-block;align-self:flex-start;font-size:11.5px;font-weight:700;color:var(--ok);background:#e7f3ec;border-radius:5px;padding:1px 6px}
 .hs{margin:16px 0 6px}
 .hs h2{font-size:17px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
 .hs h2:before{content:"";width:4px;height:18px;border-radius:2px;background:var(--accent)}
@@ -296,8 +297,17 @@ function addCart(i, vid, q) {
 function cartLines() {
   return cart.map(c => { const p = BYID[c.i], v = findVar(p, c.v); return { c, p, v, sub: v[1] * c.q }; });
 }
+// 商品設成「免運」：購物車有它（或全部都是，看 config.freeShip.rule）且取貨方式在 freeShip.ships 內 → 運費 0
+function fsHit(method) {
+  const f = CFG.freeShip || { ships: ['cvs'], rule: 'any' };
+  if (!f.ships.includes(method) || !cart.length) return false;
+  const ps = cart.map(c => BYID[c.i]).filter(Boolean);
+  return f.rule === 'all' ? ps.every(p => p.fs) : ps.some(p => p.fs);
+}
+const fsLabel = () => (CFG.freeShip && CFG.freeShip.ships || ['cvs']).map(k => CFG.shipping[k] ? CFG.shipping[k].name : k).join('、') + ' 免運';
 function shipFee(method, subtotal) {
   const s = CFG.shipping[method]; if (!s) return 0;
+  if (fsHit(method)) return 0;
   if (CFG.freeShippingOver > 0 && subtotal >= CFG.freeShippingOver && method !== 'store') return 0;
   return s.fee || 0;
 }
@@ -369,7 +379,7 @@ function filtered() {
 function priceTxt(p) { return p.p === p.P ? money(p.p) : money(p.p) + ' – ' + Number(p.P).toLocaleString('en-US'); }
 function card(p) {
   return `<a class="pc" href="#/p/${p.i}"><div class="im"><img loading="lazy" src="${img(p.im[0], 1)}" alt="">${p.so ? '<div class="so">已售完</div>' : ''}</div>
-  <div class="tx"><div class="nm">${esc(p.n)}</div><div class="price">${priceTxt(p)}</div></div></a>`;
+  <div class="tx"><div class="nm">${esc(p.n)}</div>${p.fs ? '<span class="fsb">7-11 免運</span>' : ''}<div class="price">${priceTxt(p)}</div></div></a>`;
 }
 function viewList() {
   markCat(); document.title = '韋德機車精品 線上商城';
@@ -411,7 +421,7 @@ function viewProduct(p) {
       ${imgs.length > 1 ? `<div class="thumbs" id="thumbs">${imgs.map((id, k) => `<img src="${img(id, 1)}" data-k="${k}" class="${k ? '' : 'on'}" alt="">`).join('')}</div>` : ''}</div>
     <div class="info">
       <h1>${esc(p.n)}</h1>
-      <div class="price" id="pp">${priceTxt(p)}</div>
+      <div class="price" id="pp">${priceTxt(p)}</div>${p.fs ? `<div class="fsb" style="margin-top:6px">🚚 ${esc(fsLabel())}</div>` : ''}
       ${single ? '' : `<div class="tier"><h3>${esc(p.t || '規格')}</h3><div class="opts" id="o1">${t1.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>
       ${two ? `<div class="tier"><h3>選項</h3><div class="opts" id="o2">${t2.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}`}
       <div class="row"><span class="lab">數量</span><div class="qty"><button id="qm">−</button><input id="qn" type="number" inputmode="numeric" value="1" min="1"><button id="qp">＋</button></div><span class="stock" id="stk"></span></div>
@@ -520,7 +530,7 @@ function viewCheckout() {
 
   $('#app').innerHTML = `<button class="back" onclick="location.hash='#/cart'">‹ 回購物車</button>
   <form id="fm" novalidate><div class="lay"><div>
-    <div class="box"><h2>取貨方式</h2><div class="radios" id="ships">${ships.map(([k, s]) => `<label class="radio" data-k="${k}"><input type="radio" name="ship" value="${k}"><span class="r">${esc(s.name)}</span><small>${s.fee ? '運費 ' + money(s.fee) + (s.feeFrom ? ' 起' : '') : '免運'}</small></label>`).join('')}</div>
+    <div class="box"><h2>取貨方式</h2><div class="radios" id="ships">${ships.map(([k, s]) => `<label class="radio" data-k="${k}"><input type="radio" name="ship" value="${k}"><span class="r">${esc(s.name)}</span><small>${shipFee(k, sub) ? '運費 ' + money(s.fee) + (s.feeFrom ? ' 起' : '') : (s.fee ? '<b style="color:var(--ok)">免運</b>' : '免運')}</small></label>`).join('')}</div>
       <div id="shipExtra"></div></div>
     <div class="box"><h2>付款方式</h2><div class="radios" id="pays"></div><div class="hint" id="payHint"></div></div>
     <div class="box"><h2>訂購人資料</h2>
