@@ -356,8 +356,12 @@ function markCat() {
 $('#cartBtn').onclick = () => { location.hash = '#/cart'; };
 const qEl = $('#q'), qx = $('#qx');
 let qt;
-qEl.addEventListener('input', () => {
+let qComp = false;
+qEl.addEventListener('compositionstart', () => { qComp = true; });
+qEl.addEventListener('compositionend', () => { qComp = false; qEl.dispatchEvent(new Event('input')); });
+qEl.addEventListener('input', e => {
   qx.style.display = qEl.value ? 'block' : 'none';
+  if (qComp || e.isComposing) return;
   clearTimeout(qt); qt = setTimeout(() => {
     state.q = qEl.value.trim(); state.shown = 40;
     if (/^#\/(p|cart|checkout|done)/.test(location.hash)) location.hash = state.cat ? '#/c/' + state.cat : '#/'; else viewList();
