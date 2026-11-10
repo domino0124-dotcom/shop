@@ -66,6 +66,17 @@ label.f>span{display:block;font-size:13px;color:var(--ink2);margin-bottom:4px}
 .err{color:var(--accent);font-size:13px;margin-top:8px}
 .more{display:block;margin:14px auto;padding:8px 20px;border:1px solid var(--line);background:#fff;border-radius:999px}
 .empty{text-align:center;color:var(--ink2);padding:40px 0}
+.nav{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#e7e7e3;border-radius:10px;padding:4px;margin-bottom:12px}
+.nav button{border:0;background:none;border-radius:8px;height:38px;font-weight:700;color:var(--ink2)}
+.nav button.on{background:#fff;color:var(--ink);box-shadow:var(--shadow)}
+.oc{background:#fff;border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;display:grid;gap:6px}
+.oc .top{display:flex;align-items:center;gap:8px}.oc .top b{font-size:15px}.oc .top .dt{color:var(--ink2);font-size:12.5px;flex:1}
+.oc select{width:auto;padding:5px 8px;font-size:13px}
+.oc .meta{font-size:13.5px}.oc .meta .tot{color:var(--accent);font-weight:800}
+.oc details{font-size:13px;color:var(--ink2)}.oc pre{white-space:pre-wrap;font:inherit;margin:6px 0 0}
+.code{background:#e7f3ec;border-radius:8px;padding:8px 10px;font-size:13px}.code b{font-size:20px;letter-spacing:1px;color:var(--ok);margin-right:6px}
+.tag.b{background:#fde8e4;color:var(--accent)}
+.oc .acts2{display:flex;gap:8px;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -143,7 +154,7 @@ function viewList() {
   if (view.tab === 'c' || view.tab === 'm') list = list.filter(x => x._kind === view.tab);
   if (view.tab === 'off') list = list.filter(x => !x._on);
   if (view.q) { const ks = view.q.toLowerCase().split(/\s+/); list = list.filter(x => { const s = (x.n + ' ' + x.i).toLowerCase(); return ks.every(k => s.includes(k)); }); }
-  $('#app').innerHTML = `<div class="row" style="margin-bottom:10px"><input id="q" type="search" placeholder="搜尋商品名稱" value="${esc(view.q)}"><button class="btn sm" style="height:44px;white-space:nowrap" id="sync">從蝦皮同步</button></div>
+  $('#app').innerHTML = nav('p') + `<div class="row" style="margin-bottom:10px"><input id="q" type="search" placeholder="搜尋商品名稱" value="${esc(view.q)}"><button class="btn sm" style="height:44px;white-space:nowrap" id="sync">從蝦皮同步</button></div>
     <div class="chips">${tabs.map(([k, n]) => `<button class="chip${view.tab === k ? ' on' : ''}" data-t="${k}">${n} ${cnt[k]}</button>`).join('')}</div>
     <div class="list" id="list">${list.slice(0, view.shown).map(row).join('') || '<div class="empty">沒有商品</div>'}</div>
     ${list.length > view.shown ? '<button class="more" id="more">看更多</button>' : ''}
@@ -153,6 +164,7 @@ function viewList() {
   if ($('#more')) $('#more').onclick = () => { view.shown += 30; viewList(); };
   $('#new').onclick = () => viewEdit(null);
   $('#sync').onclick = () => viewSync();
+  bindNav();
   $('#list').onclick = async e => {
     const b = e.target.closest('button[data-a]'); if (!b) return;
     const id = b.dataset.id, it = list.find(x => x.i === id);
@@ -256,6 +268,63 @@ async function viewEdit(x) {
     try { await api('delete', { id: it.i }); toast(isShopee ? '已還原' : '已刪除'); await reloadRowsQuiet(); viewList(); }
     catch (err) { $('#er').textContent = err.message; }
   };
+}
+
+function nav(on) { return `<div class="nav"><button data-n="p" class="${on === 'p' ? 'on' : ''}">商品</button><button data-n="o" class="${on === 'o' ? 'on' : ''}">訂單</button></div>`; }
+function bindNav() { document.querySelectorAll('.nav button').forEach(b => b.onclick = () => b.dataset.n === 'o' ? viewOrders() : viewList()); }
+
+/* ---------- 訂單 ---------- */
+let OV = { f: 'todo' };
+async function viewOrders() {
+  window.scrollTo(0, 0);
+  $('#app').innerHTML = nav('o') + '<div class="empty">讀取訂單…</div>'; bindNav();
+  let j; try { j = await api('orders', { limit: 100 }); } catch (e) { $('#app').innerHTML = nav('o') + `<div class="empty">${esc(e.message)}</div>`; bindNav(); return; }
+  const done = ['已完成', '取消'];
+  const draw = () => {
+    let list = j.orders;
+    if (OV.f === 'todo') list = list.filter(o => !done.includes(o.status));
+    if (OV.f === 'cvs') list = list.filter(o => String(o.ship).includes('7-11'));
+    const fs = [['todo', '處理中'], ['cvs', '7-11'], ['all', '全部']];
+    $('#app').innerHTML = nav('o') + `<div class="chips" style="margin-top:0">${fs.map(([k, n]) => `<button class="chip${OV.f === k ? ' on' : ''}" data-f="${k}">${n}</button>`).join('')}<button class="chip" id="rl">↻ 重新整理</button></div>
+      <div class="list" id="ol">${list.map(oc).join('') || '<div class="empty">沒有訂單</div>'}</div>`;
+    bindNav();
+    document.querySelectorAll('.chip[data-f]').forEach(b => b.onclick = () => { OV.f = b.dataset.f; draw(); });
+    $('#rl').onclick = viewOrders;
+    $('#ol').onchange = async e => {
+      const sel = e.target.closest('select[data-no]'); if (!sel) return;
+      try { await api('order_status', { no: sel.dataset.no, status: sel.value }); j.orders.find(o => o.no === sel.dataset.no).status = sel.value; toast('已更新狀態'); }
+      catch (err) { toast(err.message); }
+    };
+    $('#ol').onclick = async e => {
+      const b = e.target.closest('button[data-a]'); if (!b) return;
+      const o = j.orders.find(x => x.no === b.dataset.no);
+      if (b.dataset.a === 'copy') { navigator.clipboard?.writeText(o.code).then(() => toast('已複製寄件代碼')); return; }
+      if (b.dataset.a === 'cvs') {
+        if (!confirm(`建立 7-11 寄件單？\n${o.name}　${o.where}\n${o.pay}　NT$${o.total}`)) return;
+        b.disabled = true; b.textContent = '建立中…';
+        try { const r = await api('cvs_create', { no: o.no }); o.code = r.code; o.lid = r.lid; o.lstat = '已建立' + (r.stage ? '（測試）' : ''); if (!done.includes(o.status)) o.status = '已付款-待出貨'; draw(); toast('寄件代碼：' + r.code); }
+        catch (err) { alert(err.message); b.disabled = false; b.textContent = '建立 7-11 寄件單'; }
+      }
+      if (b.dataset.a === 'block') {
+        if (!confirm(`把 ${o.name}（${o.phone}）加入黑名單？\n之後這支手機只能先匯款，這筆訂單會改成「取消」。`)) return;
+        try { await api('block', { no: o.no }); o.blocked = true; o.status = '取消'; draw(); toast('已加入黑名單'); } catch (err) { alert(err.message); }
+      }
+    };
+  };
+  function oc(o) {
+    const d = new Date(o.at), dt = isNaN(d) ? '' : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const cvs = String(o.ship).includes('7-11');
+    return `<div class="oc"><div class="top"><b>${esc(o.no)}</b><span class="dt">${dt}</span>
+      <select data-no="${esc(o.no)}">${j.statuses.map(st => `<option${st === o.status ? ' selected' : ''}>${esc(st)}</option>`).join('')}</select></div>
+      <div class="meta">${o.blocked ? '<span class="tag b">黑名單</span>' : ''}${esc(o.name)}　<a href="tel:${esc(o.phone)}">${esc(o.phone)}</a>${o.lineId ? '　LINE：' + esc(o.lineId) : ''}</div>
+      <div class="meta">${esc(o.ship)}｜${esc(o.pay)}｜<span class="tot">NT$${Number(o.total).toLocaleString()}</span></div>
+      <div class="hint" style="margin:0">${esc(o.where)}${o.last5 ? '　匯款後五碼：' + esc(o.last5) : ''}</div>
+      <details><summary>商品明細${o.note ? '・有備註' : ''}</summary><pre>${esc(o.detail)}${o.bike ? '\n車款：' + esc(o.bike) : ''}${o.note ? '\n備註：' + esc(o.note) : ''}${o.memo ? '\n處理：' + esc(o.memo) : ''}</pre></details>
+      ${cvs && o.code ? `<div class="code">寄件代碼 <b>${esc(o.code)}</b><button class="btn sm gray" data-a="copy" data-no="${esc(o.no)}">複製</button><div class="hint" style="margin:2px 0 0">${esc(o.lstat || '')}</div></div>` : ''}
+      <div class="acts2">${cvs && !o.code && o.status !== '取消' ? `<button class="btn sm solid" data-a="cvs" data-no="${esc(o.no)}">建立 7-11 寄件單</button>` : ''}
+        ${String(o.pay) === '取貨付款' && !o.blocked && o.status !== '取消' ? `<button class="btn sm gray" data-a="block" data-no="${esc(o.no)}">未取貨→加黑名單</button>` : ''}</div></div>`;
+  }
+  draw();
 }
 
 function catList() { return (CFG.categories || PROD.cats).map(c => c.n); }

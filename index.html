@@ -194,6 +194,14 @@ const img = (id, tn) => {
 };
 function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 1800); }
 
+/* ---------- 從 7-11 門市地圖回來：帶入門市 ---------- */
+(() => {
+  const qs = new URLSearchParams(location.search);
+  if (!qs.get('cvsId')) return;
+  store.set('wade_buyer', { ...store.get('wade_buyer', {}), cvsId: qs.get('cvsId'), cvsStore: qs.get('cvsName') || '', cvsAddr: qs.get('cvsAddr') || '', ship: 'cvs' });
+  history.replaceState(null, '', location.pathname + (location.hash || '#/checkout'));
+})();
+
 /* ---------- load ---------- */
 Promise.all([
   fetch('config.json', { cache: 'no-cache' }).then(r => r.json()),
@@ -470,12 +478,12 @@ function viewCheckout() {
       <div id="shipExtra"></div></div>
     <div class="box"><h2>付款方式</h2><div class="radios" id="pays"></div><div class="hint" id="payHint"></div></div>
     <div class="box"><h2>訂購人資料</h2>
-      <label class="f" data-f="name"><span>姓名 <i>*</i></span><input name="name" autocomplete="name" value="${fv('name')}"><div class="em">請填寫姓名</div></label>
+      <label class="f" data-f="name"><span>姓名 <i>*</i></span><input name="name" autocomplete="name" value="${fv('name')}"><div class="em" id="nameEm">請填寫姓名</div><div class="hint" id="nameHint"></div></label>
       <label class="f" data-f="phone"><span>手機 <i>*</i></span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="09xxxxxxxx" value="${fv('phone')}"><div class="em">請填寫正確的手機號碼（09 開頭 10 碼）</div></label>
       <label class="f"><span>LINE ID（方便我們聯絡確認庫存）</span><input name="lineId" value="${fv('lineId')}"></label>
       <label class="f"><span>Email</span><input name="email" type="email" inputmode="email" autocomplete="email" value="${fv('email')}"></label>
       <label class="f"><span>機車車款（選填，幫您確認是否適用）</span><input name="bike" placeholder="例：勁戰六代、DRG" value="${fv('bike')}"></label>
-      <label class="f"><span>備註</span><textarea name="note" rows="2"></textarea></label>
+      <label class="f"><span>備註</span><textarea name="note" rows="2">${fv('note')}</textarea></label>
       <input class="hp" name="website" tabindex="-1" autocomplete="off">
     </div></div>
     <div><div class="box"><h2>訂單明細</h2>
@@ -493,9 +501,13 @@ function viewCheckout() {
     document.querySelectorAll('#ships .radio').forEach(r => { const on = r.dataset.k === ship; r.classList.toggle('on', on); r.querySelector('input').checked = on; });
     const ex = $('#shipExtra');
     if (ship === 'home') ex.innerHTML = `<label class="f" data-f="address"><span>收件地址 <i>*</i></span><input name="address" autocomplete="street-address" value="${fv('address')}"><div class="em">請填寫收件地址</div></label>`;
-    else if (ship === 'cvs') ex.innerHTML = `<label class="f" data-f="cvsStore"><span>7-11 門市名稱 <i>*</i></span><input name="cvsStore" placeholder="例：新莊頭前門市" value="${fv('cvsStore')}"><div class="em">請填寫門市名稱</div></label>
-      <label class="f" data-f="cvsId"><span>門市店號（6 碼）<i>*</i></span><input name="cvsId" inputmode="numeric" maxlength="6" placeholder="例：123456" value="${fv('cvsId')}"><div class="em">請填寫 6 碼店號</div></label>
-      <div class="hint">不知道店號？<a href="https://emap.pcsc.com.tw/" target="_blank" rel="noopener">開啟 7-11 門市查詢</a></div>`;
+    else if (ship === 'cvs') {
+      ex.innerHTML = `<button type="button" class="btn block" id="mapBtn" style="margin-top:12px">📍 ${saved.cvsId ? '重新選擇' : '選擇'} 7-11 門市</button>
+      ${saved.cvsAddr ? `<div class="hint">門市地址：${fv('cvsAddr')}</div>` : ''}
+      <label class="f" data-f="cvsStore"><span>7-11 門市名稱 <i>*</i></span><input name="cvsStore" placeholder="按上方按鈕選擇門市" value="${fv('cvsStore')}"><div class="em">請選擇門市</div></label>
+      <label class="f" data-f="cvsId"><span>門市店號（6 碼）<i>*</i></span><input name="cvsId" inputmode="numeric" maxlength="6" placeholder="選擇門市後自動帶入" value="${fv('cvsId')}"><div class="em">請選擇門市</div></label>`;
+      $('#mapBtn').onclick = openMap;
+    }
     else ex.innerHTML = `<div class="hint" style="margin-top:10px">門市：${esc(CFG.address)}<br>${CFG.hours.map(esc).join('　')}</div>`;
     const pays = CFG.shipping[ship].pay;
     if (!pays.includes(pay)) pay = pays.includes(saved.pay) ? saved.pay : pays[0];
@@ -507,6 +519,23 @@ function viewCheckout() {
     $('#payHint').textContent = pay === 'transfer' ? `確認有貨後請於 ${CFG.transferDays} 天內轉帳，送出後會顯示匯款帳號。` : pay === 'cod' ? '商品到店後，於 7-11 取貨時付款。' : '到店取貨時付款，可付現。';
     const fee = shipFee(ship, sub), sf = CFG.shipping[ship]; $('#fee').textContent = fee ? money(fee) + (sf.feeFrom ? ' 起' : '') : '免運'; $('#tot').textContent = money(sub + fee) + (fee && sf.feeFrom ? ' 起' : '');
     $('#feeNote').textContent = sf.feeNote || '';
+    $('#nameHint').textContent = ship === 'cvs' ? '7-11 取貨要核對證件，請填真實姓名（中文 2～5 字）' : '';
+  }
+  async function openMap() {
+    const fd = Object.fromEntries(new FormData($('#fm')).entries());
+    store.set('wade_buyer', { ...store.get('wade_buyer', {}), name: fd.name, phone: fd.phone, lineId: fd.lineId, email: fd.email, bike: fd.bike, note: fd.note, ship, pay });
+    if (!CFG.gasUrl) return toast('測試模式無法開啟門市地圖');
+    const b = $('#mapBtn'); b.disabled = true; b.textContent = '開啟 7-11 門市地圖中…';
+    try {
+      const r = await fetch(CFG.gasUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'shop_order', op: 'map' }) }).then(r => r.json());
+      if (!r.ok) throw new Error(r.error);
+      const f = document.createElement('form'); f.method = 'POST'; f.action = r.url;
+      const add = (k, v) => { const i = document.createElement('input'); i.type = 'hidden'; i.name = k; i.value = v; f.appendChild(i); };
+      add('MerchantID', r.MerchantID); add('LogisticsType', 'CVS'); add('LogisticsSubType', 'UNIMARTC2C');
+      add('IsCollection', pay === 'cod' ? 'Y' : 'N'); add('ServerReplyURL', CFG.gasUrl + '?shopmap=1');
+      add('Device', /Mobi|Android|iPhone/i.test(navigator.userAgent) ? '1' : '0');
+      document.body.appendChild(f); f.submit();
+    } catch (err) { b.disabled = false; b.textContent = '📍 選擇 7-11 門市'; toast('無法開啟地圖：' + err.message); }
   }
   $('#ships').onclick = e => { const r = e.target.closest('.radio'); if (r && r.dataset.k !== ship) { ship = r.dataset.k; renderShip(); } };
   $('#pays').onclick = e => { const r = e.target.closest('.radio'); if (r) { pay = r.dataset.k; renderPay(); } };
@@ -522,11 +551,15 @@ function viewCheckout() {
     fd.phone = fd.phone.replace(/[\s-]/g, ''); if (!/^09\d{8}$/.test(fd.phone)) bad.push('phone');
     if (ship === 'home' && !fd.address) bad.push('address');
     if (ship === 'cvs') { if (!fd.cvsStore) bad.push('cvsStore'); if (!/^\d{6}$/.test(fd.cvsId || '')) bad.push('cvsId'); }
+    const cvsNameBad = ship === 'cvs' && fd.name && !/^[\u4e00-\u9fff]{2,5}$|^[A-Za-z]{4,10}$/.test(fd.name);
+    if (cvsNameBad) bad.push('name');
+    $('#nameEm').textContent = cvsNameBad ? '7-11 取貨姓名需為中文 2～5 字（不含空格、符號），或英文 4～10 字' : '請填寫姓名';
     document.querySelectorAll('.f[data-f]').forEach(f => f.classList.toggle('err', bad.includes(f.dataset.f)));
     if (bad.length) { document.querySelector('.f.err').scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+    if (ship === 'cvs' && sub + shipFee(ship, sub) > 20000) { $('#sErr').textContent = '7-11 店到店單筆上限 20,000 元，請改用宅配或來店自取'; return; }
     if (!$('#agree').checked) { $('#sErr').textContent = '請勾選同意上方說明'; return; }
     if (fd.website) return; // 機器人
-    store.set('wade_buyer', { name: fd.name, phone: fd.phone, lineId: fd.lineId, email: fd.email, bike: fd.bike, address: fd.address, cvsStore: fd.cvsStore, cvsId: fd.cvsId, ship, pay });
+    store.set('wade_buyer', { name: fd.name, phone: fd.phone, lineId: fd.lineId, email: fd.email, bike: fd.bike, address: fd.address, cvsStore: fd.cvsStore, cvsId: fd.cvsId, cvsAddr: fd.cvsId === saved.cvsId ? saved.cvsAddr : '', ship, pay, note: '' });
 
     const order = {
       action: 'shop_order', ship, pay,
