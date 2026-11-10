@@ -1,6 +1,6 @@
 {
   "shopName": "韋德機車精品",
-  "gasUrl": "",
+  "gasUrl": "https://script.google.com/macros/s/AKfycbzd7nyjqzMbGH1WUxBBNqbCrVibCmZEPAMzaGPtkuF0n8TR_Zsovu-7aYM02SGTmPV4UQ/exec",
   "shipping": {
     "store": {
       "name": "來店自取",
@@ -35,10 +35,10 @@
   },
   "freeShippingOver": 0,
   "bank": {
-    "bankName": "（請填銀行名稱）",
-    "bankCode": "000",
-    "account": "（請填帳號）",
-    "holder": "（請填戶名）"
+    "bankName": "中國信託",
+    "bankCode": "822",
+    "account": "820540357707",
+    "holder": "晉德購物商行"
   },
   "transferDays": 3,
   "line": "https://line.me/R/ti/p/@wademoto",
