@@ -77,10 +77,49 @@ label.f>span{display:block;font-size:13px;color:var(--ink2);margin-bottom:4px}
 .code{background:#e7f3ec;border-radius:8px;padding:8px 10px;font-size:13px}.code b{font-size:20px;letter-spacing:1px;color:var(--ok);margin-right:6px}
 .tag.b{background:#fde8e4;color:var(--accent)}
 .oc .acts2{display:flex;gap:8px;flex-wrap:wrap}
-.cr{background:#fff;border-radius:10px;box-shadow:var(--shadow);padding:10px;display:grid;grid-template-columns:1fr auto;gap:6px 8px;align-items:center}
+.cr{background:#fff;border-radius:10px;box-shadow:var(--shadow);padding:10px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 8px;align-items:center}
 .cr .nm2{font-weight:700}.cr input{padding:7px 9px;font-size:14px}.cr .kw{grid-column:1/-1}
 .cr .ar{display:flex;gap:4px}.cr .ar button{width:32px;height:32px;border:1px solid var(--line);background:#fff;border-radius:7px;padding:0}
 .cr .cnt{font-size:12px;color:var(--ink2)}
+.pick{width:100%;display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);border-radius:8px;padding:10px 11px;background:#fff;font-size:15px;text-align:left}
+.pick.empty{color:#999}
+.pk{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center}
+.pk .in{background:#fff;width:100%;max-width:560px;max-height:80vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column}
+.pk .h{display:flex;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.pk .h button{border:0;background:none;font-size:22px;color:var(--ink2)}
+.pk .ls{overflow:auto;padding:8px 14px 20px;display:grid;gap:6px}
+.pk .ls button{text-align:left;border:1px solid var(--line);background:#fff;border-radius:10px;padding:11px 12px;font-size:15px}
+.pk .ls button.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+.pk .ls button.new{border-style:dashed;color:var(--ok);font-weight:700}
+/* ---------- 電腦版 ---------- */
+.tbar{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.tbar input{flex:1 1 100%;min-width:0}.tbar select{flex:1;min-width:0;width:auto}
+.row>input{min-width:0}
+html,body{overflow-x:hidden}
+.addc{background:#fff;border-radius:12px;box-shadow:var(--shadow);padding:12px;margin-bottom:12px;display:grid;gap:8px;border:2px solid var(--ok)}
+@media(min-width:900px){.tbar input{flex:1 1 0}.tbar select{flex:0 1 220px}}
+.tbl{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border-radius:12px;box-shadow:var(--shadow);overflow:hidden;font-size:14px}
+.tbl th{background:#f0f0ec;text-align:left;font-weight:600;color:var(--ink2);padding:9px 10px;white-space:nowrap;font-size:13px}
+.tbl th[data-s]{cursor:pointer}.tbl th[data-s]:hover{color:var(--ink)}
+.tbl td{padding:8px 10px;border-top:1px solid var(--line);vertical-align:middle}
+.tbl tr:hover td{background:#fafaf8}
+.tbl tr.off td{opacity:.55}
+.tbl td img{width:52px;height:52px;object-fit:cover;border-radius:6px;background:#eee;display:block}
+.tbl .nm{cursor:pointer;line-height:1.4}.tbl .nm:hover{color:var(--accent)}
+.tbl .pr{color:var(--accent);font-weight:700;white-space:nowrap}
+.tbl .ac{white-space:nowrap;text-align:right}.tbl .ac .btn{margin-left:4px}
+.tbl .sub{font-size:12.5px;color:var(--ink2)}
+.tbl details{font-size:13px;color:var(--ink2)}.tbl details pre{white-space:pre-wrap;font:inherit;margin:4px 0 0;max-width:340px}
+.tbl select{width:auto;padding:5px 8px;font-size:13px}
+.tbl .code{display:inline-block;padding:4px 8px}.tbl .code b{font-size:15px}
+.ecols{display:block}
+@media(min-width:900px){
+  main{max-width:1280px;padding:18px 24px 90px}.hd{max-width:1280px;padding:0 24px}
+  .nav{max-width:420px}
+  .ecols{display:grid;grid-template-columns:1.15fr 1fr;gap:14px;align-items:start}
+  .ecols textarea#d{min-height:320px}
+  #cl{grid-template-columns:1fr 1fr}
+}
 </style>
 </head>
 <body>
@@ -100,7 +139,10 @@ const ls = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSO
 function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2000); }
 
 let CFG, PROD, IMG, BASE = {}, ROWS = {}, pw = ls.get('wade_admin_pw', '');
-let view = { tab: 'all', q: '', shown: 30 };
+let view = { tab: 'all', q: '', shown: 30, cat: '', sk: '', sd: 1 };
+let REDRAW = null;
+const wide = () => matchMedia('(min-width: 900px)').matches;
+let _w = null; addEventListener('resize', () => { clearTimeout(_w); _w = setTimeout(() => { if (REDRAW && wide() !== REDRAW._w) REDRAW(); }, 200); });
 const img = (id, tn) => {
   if (!id) return '';
   if (/^https?:/.test(id)) return /googleusercontent\.com\/d\//.test(id) ? id + (tn ? '=s400' : '=s1200') : id;
@@ -158,18 +200,31 @@ function viewList() {
   if (view.tab === 'c' || view.tab === 'm') list = list.filter(x => x._kind === view.tab);
   if (view.tab === 'off') list = list.filter(x => !x._on);
   if (view.q) { const ks = view.q.toLowerCase().split(/\s+/); list = list.filter(x => { const s = (x.n + ' ' + x.i).toLowerCase(); return ks.every(k => s.includes(k)); }); }
-  $('#app').innerHTML = nav('p') + `<div class="row" style="margin-bottom:10px"><input id="q" type="search" placeholder="搜尋商品名稱" value="${esc(view.q)}"><button class="btn sm" style="height:44px;white-space:nowrap" id="sync">從蝦皮同步</button></div>
-    <div class="chips">${tabs.map(([k, n]) => `<button class="chip${view.tab === k ? ' on' : ''}" data-t="${k}">${n} ${cnt[k]}</button>`).join('')}</div>
-    <div class="list" id="list">${list.slice(0, view.shown).map(row).join('') || '<div class="empty">沒有商品</div>'}</div>
+  if (view.cat) list = list.filter(x => x.c === view.cat);
+  if (view.sk) { const k = view.sk, d = view.sd; list = [...list].sort((a, b) => (k === 'p' ? a.p - b.p : String(a[k] || '').localeCompare(String(b[k] || ''), 'zh-Hant')) * d); }
+  const W = wide(); if (W && view.shown < 60) view.shown = 60;
+  const sh = (k, n) => `<th data-s="${k}">${n}${view.sk === k ? (view.sd > 0 ? ' ▲' : ' ▼') : ''}</th>`;
+  const body = !list.length ? '<div class="empty">沒有商品</div>' : W
+    ? `<table class="tbl"><thead><tr><th></th>${sh('n', '商品名稱')}${sh('c', '分類')}${sh('p', '價格')}<th>狀態</th><th></th></tr></thead><tbody>${list.slice(0, view.shown).map(trow).join('')}</tbody></table>`
+    : list.slice(0, view.shown).map(row).join('');
+  $('#app').innerHTML = nav('p') + `<div class="tbar"><input id="q" type="search" placeholder="搜尋商品名稱" value="${esc(view.q)}">
+      <select id="cf"><option value="">全部分類</option>${catList().map(c => `<option${c === view.cat ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select>
+      <button class="btn sm" style="height:44px;white-space:nowrap" id="sync">從蝦皮同步</button></div>
+    <div class="chips">${tabs.map(([k, n]) => `<button class="chip${view.tab === k ? ' on' : ''}" data-t="${k}">${n} ${cnt[k]}</button>`).join('')}<span class="hint" style="margin:0 0 0 6px;align-self:center;white-space:nowrap">共 ${list.length} 件</span></div>
+    <div class="list" id="list">${body}</div>
     ${list.length > view.shown ? '<button class="more" id="more">看更多</button>' : ''}
     <button class="fab" id="new">＋ 新增商品</button>`;
   let qt; $('#q').oninput = e => { clearTimeout(qt); qt = setTimeout(() => { view.q = e.target.value.trim(); view.shown = 30; viewList(); $('#q').focus(); }, 300); };
   document.querySelectorAll('.chip').forEach(b => b.onclick = () => { view.tab = b.dataset.t; view.shown = 30; viewList(); });
-  if ($('#more')) $('#more').onclick = () => { view.shown += 30; viewList(); };
+  if ($('#more')) $('#more').onclick = () => { view.shown += W ? 60 : 30; viewList(); };
+  $('#cf').onchange = e => { view.cat = e.target.value; view.shown = 30; viewList(); };
+  document.querySelectorAll('th[data-s]').forEach(th => th.onclick = () => { const k = th.dataset.s; view.sd = view.sk === k ? -view.sd : 1; view.sk = k; viewList(); });
+  REDRAW = viewList; REDRAW._w = W;
   $('#new').onclick = () => viewEdit(null);
   $('#sync').onclick = () => viewSync();
   bindNav();
   $('#list').onclick = async e => {
+    const nm = e.target.closest('.nm[data-id]'); if (nm) return viewEdit(list.find(x => x.i === nm.dataset.id));
     const b = e.target.closest('button[data-a]'); if (!b) return;
     const id = b.dataset.id, it = list.find(x => x.i === id);
     if (b.dataset.a === 'edit') return viewEdit(it);
@@ -183,6 +238,14 @@ function row(x) {
   return `<div class="it${x._on ? '' : ' off'}"><img src="${img(x.im && x.im[0], 1)}" loading="lazy" alt="">
     <div><div class="nm">${tag}${esc(x.n)}</div><div class="pr">${x.p === x.P ? money(x.p) : money(x.p) + '–' + Number(x.P).toLocaleString()}</div></div>
     <div class="acts"><button class="btn sm" data-a="edit" data-id="${esc(x.i)}">編輯</button><button class="btn sm gray" data-a="tog" data-id="${esc(x.i)}">${x._on ? '下架' : '上架'}</button></div></div>`;
+}
+function trow(x) {
+  const tag = (x._kind === 'c' ? '<span class="tag c">新增</span>' : x._kind === 'm' ? '<span class="tag m">已修改</span>' : '');
+  return `<tr class="${x._on ? '' : 'off'}"><td><img src="${img(x.im && x.im[0], 1)}" loading="lazy" alt=""></td>
+    <td><div class="nm" data-id="${esc(x.i)}">${tag}${esc(x.n)}</div></td><td class="sub">${esc(x.c || '')}</td>
+    <td class="pr">${x.p === x.P ? money(x.p) : money(x.p) + '–' + Number(x.P).toLocaleString()}</td>
+    <td>${x._on ? '<span class="tag c">上架中</span>' : '<span class="tag h">已下架</span>'}</td>
+    <td class="ac"><button class="btn sm" data-a="edit" data-id="${esc(x.i)}">編輯</button><button class="btn sm gray" data-a="tog" data-id="${esc(x.i)}">${x._on ? '下架' : '上架'}</button></td></tr>`;
 }
 async function reloadRowsQuiet() { const j = await api('list'); ROWS = {}; j.rows.forEach(r => ROWS[r.id] = r); }
 
@@ -198,21 +261,25 @@ async function viewEdit(x) {
   }
   const on = x ? x._on !== false : true;
   window.scrollTo(0, 0);
+  REDRAW = null;
   $('#app').innerHTML = `<button class="btn sm gray" id="back">‹ 返回清單</button>
-  <div class="box" style="margin-top:12px"><h2>${isNew ? '新增商品' : isShopee ? '修改蝦皮商品' : '編輯商品'}</h2>
+  <div class="ecols" style="margin-top:12px"><div>
+  <div class="box"><h2>${isNew ? '新增商品' : isShopee ? '修改蝦皮商品' : '編輯商品'}</h2>
     ${isShopee ? '<div class="hint" style="margin-top:-6px">修改只會影響網站，不會改到蝦皮</div>' : ''}
     <label class="f"><span>商品名稱 *</span><input id="n" value="${esc(it.n)}" placeholder="例：APEXX 煞車拉桿 勁戰六代"></label>
-    <label class="f"><span>分類（可打字搜尋；打新名稱會自動新增分類）</span><input id="c" list="clist" value="${esc(it.c)}" autocomplete="off"><datalist id="clist">${catList().map(c => `<option value="${esc(c)}">`).join('')}</datalist></label>
+    <label class="f"><span>分類</span><button type="button" class="pick" id="cbtn"></button></label>
     <label class="f sw" style="margin-top:14px"><input type="checkbox" id="on"${on ? ' checked' : ''}> 上架中（取消勾選＝下架，客人看不到）</label>
   </div>
-  <div class="box"><h2>商品圖片 *</h2><div class="imgs" id="imgs"></div><div class="hint">第一張是封面。點「←」可往前移。照片會自動縮小再上傳。</div></div>
   <div class="box"><h2>規格與價格 *</h2>
     <label class="f" style="margin-top:0"><span>規格名稱（例：顏色、車種；沒有規格可留空）</span><input id="t" value="${esc(it.t || '')}"></label>
     <div class="vhead"><span>選項</span><span>價格 *</span><span>庫存</span><span></span></div>
     <div id="vs"></div>
     <button class="btn sm" style="margin-top:10px" id="addv">＋ 新增一個選項</button>
     <div class="hint">兩層規格用逗號分開，例：「黑色,長版」「黑色,短版」。庫存留空＝有貨；填 0＝售完。</div></div>
+  </div><div>
+  <div class="box"><h2>商品圖片 *</h2><div class="imgs" id="imgs"></div><div class="hint">第一張是封面。點「←」可往前移。照片會自動縮小再上傳（電腦可一次選多張）。</div></div>
   <div class="box"><h2>商品說明</h2><textarea id="d" rows="7" placeholder="特色、適用車種、注意事項…">${esc(it.d || '')}</textarea></div>
+  </div></div>
   <div class="err" id="er"></div>
   <div class="bar">
     ${isNew ? '' : `<button class="btn gray" id="rm">${isShopee ? '還原蝦皮原始' : '刪除'}</button>`}
@@ -253,10 +320,14 @@ async function viewEdit(x) {
   $('#vs').onclick = e => { const b = e.target.closest('[data-rm]'); if (b && vs.length > 1) { vs.splice(+b.dataset.rm, 1); drawVs(); } };
   $('#addv').onclick = () => { vs.push(['', vs[vs.length - 1][1] || '', '', '']); drawVs(); };
   $('#back').onclick = () => viewList();
+  let curCat = catList().includes(it.c) ? it.c : '';
+  const drawCat = () => { $('#cbtn').innerHTML = `<span>${esc(curCat || '請選擇分類')}</span><span>▾</span>`; $('#cbtn').classList.toggle('empty', !curCat); };
+  drawCat();
+  $('#cbtn').onclick = () => pickCat(curCat, c => { curCat = c; drawCat(); });
 
   $('#save').onclick = async () => {
     const er = $('#er'); er.textContent = '';
-    const item = { i: isNew ? '' : it.i, n: $('#n').value.trim(), c: $('#c').value, t: $('#t').value.trim(), im: ims, d: $('#d').value.trim(),
+    const item = { i: isNew ? '' : it.i, n: $('#n').value.trim(), c: curCat, t: $('#t').value.trim(), im: ims, d: $('#d').value.trim(),
       v: vs.filter(v => String(v[0]).trim() || String(v[1]).trim()).map(v => [String(v[0]).trim(), Number(v[1]), v[2] === '' ? '' : Number(v[2]), v[3] || '']) };
     if (!item.n) return er.textContent = '請填寫商品名稱';
     if (!item.im.length) return er.textContent = '請至少上傳 1 張圖片';
@@ -267,7 +338,6 @@ async function viewEdit(x) {
     const b = $('#save'); b.disabled = true; b.textContent = '儲存中…';
     try {
       if (!catList().includes(item.c)) {
-        if (!confirm(`「${item.c}」是新分類，要新增嗎？`)) { b.disabled = false; b.textContent = '儲存'; return; }
         const cats = [...CFG.categories]; cats.splice(cats.length - 1, 0, { n: item.c, k: [] });
         await saveConfig({ ...CFG, categories: cats }, false);
       }
@@ -300,7 +370,7 @@ async function saveConfig(cfg, withProducts) {
   if (prod) { PROD = prod; BASE = {}; PROD.items.forEach((x, k) => { x._k = k; BASE[x.i] = x; }); }
 }
 function viewCats() {
-  window.scrollTo(0, 0);
+  window.scrollTo(0, 0); REDRAW = null;
   const rows = CFG.categories.map(c => ({ n: c.n, k: c.k.join('、'), g: c.g, orig: c.n }));
   const counts = {}; allItems().forEach(p => counts[p.c] = (counts[p.c] || 0) + 1);
   let q = '';
@@ -321,11 +391,24 @@ function viewCats() {
   bindNav(); draw();
   $('#cq').oninput = e => { q = e.target.value.trim(); draw(); };
   $('#cadd').onclick = () => {
-    const name = (prompt('新分類名稱') || '').trim(); if (!name) return;
-    if (rows.some(r => r.n === name)) return toast('已經有這個分類');
-    const kw = (prompt('標題關鍵字（用、分開，可留空）', name.replace(/部品$/, '')) || '').trim();
-    rows.splice(rows.length - 1, 0, { n: name, k: kw, orig: name }); q = ''; $('#cq').value = ''; draw();
-    $('#cl').lastElementChild.previousElementSibling.scrollIntoView({ block: 'center' });
+    if ($('#addc')) return $('#an').focus();
+    $('#cl').insertAdjacentHTML('beforebegin', `<div class="addc" id="addc"><b>新增分類</b>
+      <input id="an" placeholder="分類名稱，例：RAK部品">
+      <input id="ak" placeholder="標題關鍵字（用、分開），例：RAK">
+      <div class="hint" style="margin:0">商品標題有這些字，就會自動分進這個分類；留空就只能手動指定。</div>
+      <div class="row"><button class="btn sm gray" id="ax" style="flex:1;height:40px">取消</button><button class="btn sm solid" id="ao" style="flex:2;height:40px">加入</button></div></div>`);
+    $('#an').focus();
+    $('#an').oninput = () => { if (!$('#ak').dataset.t) $('#ak').value = $('#an').value.trim().replace(/部品$/, ''); };
+    $('#ak').oninput = () => { $('#ak').dataset.t = 1; };
+    $('#ax').onclick = () => $('#addc').remove();
+    $('#ao').onclick = () => {
+      const name = $('#an').value.trim(); if (!name) return $('#an').focus();
+      if (rows.some(r => r.n === name)) return toast('已經有這個分類');
+      rows.splice(rows.length - 1, 0, { n: name, k: $('#ak').value.trim(), orig: name });
+      $('#addc').remove(); q = ''; $('#cq').value = ''; draw();
+      const el = $('#cl').children[rows.length - 2]; if (el) { el.scrollIntoView({ block: 'center' }); el.style.outline = '2px solid var(--ok)'; }
+      toast('已加入，記得按「儲存並重新分類」');
+    };
   };
   $('#cl').oninput = e => { const t = e.target.closest('input[data-i]'); if (t) rows[+t.dataset.i][t.dataset.f] = t.value; };
   $('#cl').onclick = e => {
@@ -357,8 +440,12 @@ async function viewOrders() {
     if (OV.f === 'todo') list = list.filter(o => !done.includes(o.status));
     if (OV.f === 'cvs') list = list.filter(o => String(o.ship).includes('7-11'));
     const fs = [['todo', '處理中'], ['cvs', '7-11'], ['all', '全部']];
-    $('#app').innerHTML = nav('o') + `<div class="chips" style="margin-top:0">${fs.map(([k, n]) => `<button class="chip${OV.f === k ? ' on' : ''}" data-f="${k}">${n}</button>`).join('')}<button class="chip" id="rl">↻ 重新整理</button></div>
-      <div class="list" id="ol">${list.map(oc).join('') || '<div class="empty">沒有訂單</div>'}</div>`;
+    const W = wide();
+    $('#app').innerHTML = nav('o') + `<div class="chips" style="margin-top:0">${fs.map(([k, n]) => `<button class="chip${OV.f === k ? ' on' : ''}" data-f="${k}">${n}</button>`).join('')}<button class="chip" id="rl">↻ 重新整理</button><span class="hint" style="margin:0 0 0 6px;align-self:center">${list.length} 筆</span></div>
+      <div class="list" id="ol">${!list.length ? '<div class="empty">沒有訂單</div>' : W
+        ? `<table class="tbl"><thead><tr><th>訂單</th><th>客人</th><th>取貨／付款</th><th>金額</th><th>商品</th><th>狀態</th><th>物流</th></tr></thead><tbody>${list.map(otr).join('')}</tbody></table>`
+        : list.map(oc).join('')}</div>`;
+    REDRAW = draw; REDRAW._w = W;
     bindNav();
     document.querySelectorAll('.chip[data-f]').forEach(b => b.onclick = () => { OV.f = b.dataset.f; draw(); });
     $('#rl').onclick = viewOrders;
@@ -383,6 +470,19 @@ async function viewOrders() {
       }
     };
   };
+  function otr(o) {
+    const d = new Date(o.at), dt = isNaN(d) ? '' : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const cvs = String(o.ship).includes('7-11');
+    return `<tr class="${o.status === '取消' ? 'off' : ''}"><td><b>${esc(o.no)}</b><div class="sub">${dt}</div></td>
+      <td>${o.blocked ? '<span class="tag b">黑名單</span>' : ''}${esc(o.name)}<div class="sub"><a href="tel:${esc(o.phone)}">${esc(o.phone)}</a>${o.lineId ? '　LINE：' + esc(o.lineId) : ''}</div></td>
+      <td>${esc(o.ship)}｜${esc(o.pay)}<div class="sub">${esc(o.where)}${o.last5 ? '<br>匯款後五碼：' + esc(o.last5) : ''}</div></td>
+      <td class="pr">NT$${Number(o.total).toLocaleString()}</td>
+      <td><details><summary>${esc(String(o.detail).split('\n').length)} 項${o.note ? '・有備註' : ''}</summary><pre>${esc(o.detail)}${o.bike ? '\n車款：' + esc(o.bike) : ''}${o.note ? '\n備註：' + esc(o.note) : ''}${o.memo ? '\n處理：' + esc(o.memo) : ''}</pre></details></td>
+      <td><select data-no="${esc(o.no)}">${j.statuses.map(st => `<option${st === o.status ? ' selected' : ''}>${esc(st)}</option>`).join('')}</select></td>
+      <td>${cvs && o.code ? `<span class="code">代碼 <b>${esc(o.code)}</b></span> <button class="btn sm gray" data-a="copy" data-no="${esc(o.no)}">複製</button><div class="sub">${esc(o.lstat || '')}</div>` : ''}
+        ${cvs && !o.code && o.status !== '取消' ? `<button class="btn sm solid" data-a="cvs" data-no="${esc(o.no)}">建立 7-11 寄件單</button>` : ''}
+        ${String(o.pay) === '取貨付款' && !o.blocked && o.status !== '取消' ? `<div style="margin-top:4px"><button class="btn sm gray" data-a="block" data-no="${esc(o.no)}">未取貨→黑名單</button></div>` : ''}</td></tr>`;
+  }
   function oc(o) {
     const d = new Date(o.at), dt = isNaN(d) ? '' : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     const cvs = String(o.ship).includes('7-11');
@@ -399,11 +499,34 @@ async function viewOrders() {
   draw();
 }
 
+// 分類選擇器：可搜尋，沒有的分類可以直接新增
+function pickCat(cur, done) {
+  const wrap = document.createElement('div'); wrap.className = 'pk';
+  wrap.innerHTML = `<div class="in"><div class="h"><input id="pq" type="search" placeholder="搜尋或輸入新分類名稱"><button id="px">✕</button></div><div class="ls" id="pl"></div></div>`;
+  document.body.appendChild(wrap);
+  const close = () => wrap.remove();
+  const draw = () => {
+    const q = $('#pq').value.trim(), list = catList().filter(c => !q || c.toLowerCase().includes(q.toLowerCase()));
+    const canNew = q && !catList().some(c => c === q);
+    $('#pl').innerHTML = (canNew ? `<button class="new" data-new="${esc(q)}">＋ 新增分類「${esc(q)}」</button>` : '') +
+      list.map(c => `<button data-c="${esc(c)}" class="${c === cur ? 'on' : ''}">${esc(c)}</button>`).join('') ||
+      '<div class="hint">輸入名稱就能新增分類</div>';
+  };
+  draw(); $('#pq').oninput = draw; $('#px').onclick = close;
+  wrap.onclick = e => { if (e.target === wrap) close(); };
+  $('#pl').onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.new) { done(b.dataset.new); toast('儲存商品時會一起新增這個分類'); } else done(b.dataset.c);
+    close();
+  };
+  setTimeout(() => $('#pq').focus(), 50);
+}
+
 function catList() { return (CFG.categories || PROD.cats).map(c => c.n); }
 
 /* ---------- 從蝦皮同步 ---------- */
 function viewSync() {
-  window.scrollTo(0, 0);
+  window.scrollTo(0, 0); REDRAW = null;
   $('#app').innerHTML = `<button class="btn sm gray" id="back">‹ 返回清單</button>
   <div class="box" style="margin-top:12px"><h2>從蝦皮同步商品</h2>
     <ol style="margin:0;padding-left:20px;font-size:14px;line-height:1.8">
