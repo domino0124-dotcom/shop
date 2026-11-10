@@ -400,5 +400,17 @@
       "g": 1
     }
   ],
-  "logo": "https://lh3.googleusercontent.com/d/1PO0vC40ultmJzeD1RfofhF6aq_vHU7FF=s600"
+  "logo": "https://lh3.googleusercontent.com/d/1PO0vC40ultmJzeD1RfofhF6aq_vHU7FF=s600",
+  "home": [
+    {
+      "t": "超值套餐",
+      "ids": [
+        "29615867800",
+        "28136193160",
+        "27586196703",
+        "21496044772",
+        "21195698994"
+      ]
+    }
+  ]
 }
