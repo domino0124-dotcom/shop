@@ -51,32 +51,19 @@ for x in find('*sales_info*.xlsx'):
 if not sales_parts: sys.exit('找不到 sales_info 檔案')
 sales = pd.concat(sales_parts).drop_duplicates(subset=['商品選項ID', '商品ID'])
 
-# ---------- 分類對照（蝦皮分類 → 中文分類）----------
-CATS = [  # key, 名稱, 判斷規則（比對蝦皮英文分類路徑）
-    ('brake',  '煞車系統',      ['Chassis/Brakes']),
-    ('shock',  '避震・前叉',    ['Shock Absorbers', 'Fork Tubes']),
-    ('trans',  '傳動・離合器',  ['Transmission/', 'Drive Chains']),
-    ('light',  '燈具・方向燈',  ['Lighting/']),
-    ('mirror', '後照鏡',        ['Side Mirrors']),
-    ('handle', '拉桿・握把・龍頭', ['Chassis/Handles', 'Handlebar', 'Hand Guards']),
-    ('body',   '車身・腳踏・外觀件', ['Plastics Kit', 'Fenders', 'Foot Pegs', 'Seat Handles', 'Chassis/Seats',
-                                  'License Plate', 'Fuel Tank', 'Engine Guards', 'Stands', 'Chassis/Others',
-                                  'Chassis/Wires', 'Chassis/Wrench', 'Seat Covers', 'Covers/Others']),
-    ('sticker','貼紙・飾品',    ['Stickers and Emblems', 'External Parts/Emblems', 'Keychain']),
-    ('tire',   '輪胎・輪框',    ['Tires and Wheels/', 'Wheel Hub', 'Spokes']),
-    ('engine', '引擎・點火・電系', ['Motorcycles/Engine/', 'Ignition/', 'Batteries', 'Exhaust', 'Muffler']),
-    ('oil',    '機油・濾網・保養', ['Filters/', 'Additive and Lubricant', 'Vehicular Care']),
-    ('meter',  '儀表',          ['Panel and Speedometer']),
-    ('phone',  '手機架・3C',    ['Phone Holders', 'Mobile & Gadgets', 'Phone Chargers', 'Car Cameras']),
-    ('case',   '置物・後箱',    ['Accessories for Motorcycles/Cases/']),
-    ('bike',   '整車',          ['Vehicles/Motorcycles']),
-    ('other',  '其他',          []),
-]
-def cat_of(path):
-    path = path or ''
-    for key, _, pats in CATS:
-        if any(p in path for p in pats): return key
-    return 'other'
+# ---------- 分類：依 config.json 的 categories，用商品標題關鍵字分 ----------
+CFG_PATH = sys.argv[3] if len(sys.argv) > 3 else os.path.join(OUT, 'config.json')
+CATS = json.load(open(CFG_PATH, encoding='utf-8'))['categories']
+_brand = [c for c in CATS if not c.get('g')]
+_generic = [c for c in reversed(CATS) if c.get('g') and c['k']]
+OTHER = next((c['n'] for c in CATS if not c['k']), '其他')
+def cat_of(name):
+    u = ' ' + (name or '').upper() + ' '
+    for c in _brand:                      # 標題直接寫「XX部品」就以它為準
+        if c['n'].endswith('部品') and c['n'].replace(' ', '').upper() in u.replace(' ', ''): return c['n']
+    for c in _brand + _generic:
+        if any(k.upper() in u for k in c['k']): return c['n']
+    return OTHER
 
 # ---------- 描述整理：拿掉蝦皮通用說明，圖片另外列 ----------
 IMG_RE = re.compile(r'https?://s-cf-tw\.shopeesz\.com/file/([\w\-]+)')
@@ -130,7 +117,7 @@ for pid in order:
         vars_.append([vn, int(r['價格']), int(r['庫存']), str(r['商品選項ID'])])
     if not vars_: continue
     prices = [v[1] for v in vars_]
-    p = {'i': str(pid), 'n': name, 'c': cat_of(mr.get('商品分類')), 'im': imgs,
+    p = {'i': str(pid), 'n': name, 'c': cat_of(name), 'im': imgs,
          'p': min(prices), 'P': max(prices), 'v': vars_}
     if tier1 and tier1.lower() != 'variation': p['t'] = tier1
     if oimg: p['oi'] = oimg
@@ -139,7 +126,7 @@ for pid in order:
     d, dimgs = clean_desc(basic.loc[pid]['商品描述'] if pid in basic.index else '')
     if d or dimgs: descs[str(pid)] = [d, dimgs]
 
-cats = [{'k': k, 'n': n, 'cnt': sum(1 for p in products if p['c'] == k)} for k, n, _ in CATS]
+cats = [{'k': c['n'], 'n': c['n'], 'cnt': sum(1 for p in products if p['c'] == c['n'])} for c in CATS]
 cats = [c for c in cats if c['cnt']]
 from datetime import datetime, timezone, timedelta
 out = {'updated': datetime.now(timezone(timedelta(hours=8))).strftime('%Y-%m-%d %H:%M'),

@@ -182,12 +182,16 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 };
 
-let CFG, DATA, IMG, BYID = {}, DESC = null, descP = null;
+let CFG, DATA, IMG, BYID = {}, DESC = null, descP = null, BASE = [], extrasDone = false;
 let state = { cat: '', q: '', sort: 'def', shown: 40 };
 let cart = store.get('wade_cart', []);   // [{i, v(variationId), q}]
 let lastOrder = store.get('wade_last_order', null);
 
-const img = (id, tn) => id ? IMG + id + (tn ? '_tn' : '') : '';
+const img = (id, tn) => {
+  if (!id) return '';
+  if (/^https?:/.test(id)) return /googleusercontent\.com\/d\//.test(id) ? id + (tn ? '=s400' : '=s1200') : id;
+  return IMG + id + (tn ? '_tn' : '');
+};
 function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 1800); }
 
 /* ---------- load ---------- */
@@ -196,10 +200,45 @@ Promise.all([
   fetch('products.json', { cache: 'no-cache' }).then(r => r.json())
 ]).then(([c, d]) => {
   CFG = c; DATA = d; IMG = d.img;
-  d.items.forEach((p, idx) => { p._idx = idx; p._s = (p.n + ' ' + p.v.map(v => v[0]).join(' ')).toLowerCase(); BYID[p.i] = p; });
+  d.items.forEach((p, idx) => { p._idx = idx; });
+  BASE = d.items;
+  const cached = store.get('wade_extras', null);
+  applyExtras(cached);
   if (!CFG.gasUrl) $('#demo').hidden = false;
-  cleanCart(); renderCats(); renderFoot(); badge(); route();
+  renderCats(); renderFoot(); badge();
+  if (cached && Date.now() - cached.at < 5 * 60 * 1000) extrasDone = true;
+  route();
+  if (!extrasDone) loadExtras();
 }).catch(e => { $('#app').innerHTML = '<div class="empty">載入失敗，請重新整理頁面</div>'; console.error(e); });
+
+/* ---------- 後台新增／修改的商品（存在試算表，經 GAS 讀取）---------- */
+function applyExtras(ex) {
+  const over = {}, hid = new Set((ex && ex.hidden) || []);
+  ((ex && ex.items) || []).forEach(p => { over[p.i] = p; });
+  const items = [];
+  BASE.forEach(p => { if (hid.has(p.i)) return; if (over[p.i]) { items.push({ ...over[p.i], _idx: p._idx, _ov: 1 }); delete over[p.i]; } else items.push(p); });
+  Object.values(over).forEach(p => { if (!hid.has(p.i)) items.push({ ...p, _idx: -(p._t || 1) }); });
+  BYID = {};
+  items.forEach(p => { p._s = (p.n + ' ' + p.v.map(v => v[0]).join(' ')).toLowerCase(); BYID[p.i] = p; });
+  DATA.items = items;
+  cleanCart();
+}
+function loadExtras() {
+  if (!CFG.gasUrl) { extrasDone = true; return; }
+  fetch(CFG.gasUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'shop_order', op: 'items' }) })
+    .then(r => r.json()).then(res => {
+      if (!res.ok) throw new Error(res.error);
+      const ex = { at: Date.now(), items: res.items || [], hidden: res.hidden || [] };
+      const old = store.get('wade_extras', null);
+      const changed = !old || JSON.stringify([old.items, old.hidden]) !== JSON.stringify([ex.items, ex.hidden]);
+      store.set('wade_extras', ex);
+      const wasWaiting = !extrasDone; extrasDone = true;
+      if (changed) { applyExtras(ex); renderCats(); markCat(); }
+      const onList = !/^#\/(p|cart|checkout|done)/.test(location.hash);
+      if (wasWaiting && /^#\/p\//.test(location.hash) && $('#waitP')) route();
+      else if (changed && onList && window.scrollY < 300) viewList();
+    }).catch(err => { console.warn('extras', err); extrasDone = true; if ($('#waitP')) route(); });
+}
 
 function loadDesc() { return descP || (descP = fetch('desc.json').then(r => r.json()).then(d => DESC = d).catch(() => DESC = {})); }
 
@@ -230,18 +269,23 @@ function route() {
   const h = location.hash.replace(/^#\/?/, '').split('/');
   window.scrollTo(0, 0); $('#app').onclick = $('#app').onchange = null;
   if (h[0] === 'p' && BYID[h[1]]) return viewProduct(BYID[h[1]]);
+  if (h[0] === 'p' && !extrasDone) { $('#app').innerHTML = '<div class="loading" id="waitP">載入商品中…</div>'; return; }
   if (h[0] === 'cart') return viewCart();
   if (h[0] === 'checkout') return cart.length ? viewCheckout() : (location.hash = '#/cart');
   if (h[0] === 'done') return viewDone();
-  state.cat = h[0] === 'c' ? (h[1] || '') : '';
+  state.cat = h[0] === 'c' ? decodeURIComponent(h[1] || '') : '';
   state.shown = 40; viewList();
 }
 
 /* ---------- category bar ---------- */
 function renderCats() {
   const el = $('#cats');
-  el.innerHTML = `<button class="chip" data-c="">全部</button>` + DATA.cats.map(c => `<button class="chip" data-c="${c.k}">${esc(c.n)}</button>`).join('');
-  el.onclick = e => { const b = e.target.closest('.chip'); if (!b) return; location.hash = b.dataset.c ? '#/c/' + b.dataset.c : '#/'; };
+  // 分類順序以 config.json 為準，沒有商品的分類不顯示
+  const have = new Set(DATA.items.map(p => p.c));
+  const src = CFG.categories ? CFG.categories.map(c => ({ k: c.n, n: c.n })) : DATA.cats;
+  DATA.cats = src.filter(c => have.has(c.k));
+  el.innerHTML = `<button class="chip" data-c="">全部</button>` + DATA.cats.map(c => `<button class="chip" data-c="${esc(c.k)}">${esc(c.n)}</button>`).join('');
+  el.onclick = e => { const b = e.target.closest('.chip'); if (!b) return; location.hash = b.dataset.c ? '#/c/' + encodeURIComponent(b.dataset.c) : '#/'; };
 }
 function markCat() {
   document.querySelectorAll('.chip').forEach(b => b.classList.toggle('on', b.dataset.c === state.cat && !location.hash.match(/#\/(p|cart|checkout|done)/)));
@@ -373,8 +417,9 @@ function viewProduct(p) {
   refresh();
 
   loadDesc().then(() => {
-    const d = DESC[p.i]; const el = $('#dbody'); if (!el) return;
-    if (!d || (!d[0] && !d[1].length)) { el.textContent = '詳細規格與適用車種歡迎 LINE 詢問。'; return; }
+    const dd = DESC[p.i]; const el = $('#dbody'); if (!el) return;
+    const d = [p.d != null ? p.d : (dd ? dd[0] : ''), dd ? dd[1] : []];
+    if (!d[0] && !d[1].length) { el.textContent = '詳細規格與適用車種歡迎 LINE 詢問。'; return; }
     el.className = '';
     el.innerHTML = (d[0] ? `<pre>${esc(d[0])}</pre>` : '') + d[1].map(id => `<img loading="lazy" src="${img(id)}" alt="">`).join('');
   });

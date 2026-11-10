@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>商城後台｜韋德機車精品</title>
+<meta name="theme-color" content="#16181d">
+<style>
+:root{--bg:#f4f4f2;--card:#fff;--ink:#16181d;--ink2:#5b5f68;--line:#e3e3df;--accent:#e5381f;--ok:#1f8a4c;--warn:#b26a00;--r:12px;--shadow:0 1px 2px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.05)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif}
+button{font:inherit;color:inherit;cursor:pointer}
+img{display:block;max-width:100%}
+header{position:sticky;top:0;z-index:10;background:var(--ink);color:#fff}
+.hd{max-width:820px;margin:0 auto;display:flex;align-items:center;gap:10px;height:54px;padding:0 16px}
+.hd b{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:7px;background:var(--accent)}
+.hd h1{font-size:16px;margin:0;flex:1}
+.hd a{color:#cfd2d8;font-size:13px}
+main{max-width:820px;margin:0 auto;padding:14px 16px 90px}
+.box{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+.box h2{font-size:15px;margin:0 0 10px}
+input,select,textarea{font:inherit;width:100%;border:1px solid var(--line);border-radius:8px;padding:10px 11px;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid #f3b4a9;border-color:var(--accent)}
+label.f{display:block;margin-top:12px}
+label.f>span{display:block;font-size:13px;color:var(--ink2);margin-bottom:4px}
+.btn{height:44px;padding:0 18px;border-radius:10px;border:1px solid var(--accent);background:#fff;color:var(--accent);font-weight:700}
+.btn.solid{background:var(--accent);color:#fff}
+.btn.gray{border-color:var(--line);color:var(--ink2)}
+.btn.sm{height:32px;padding:0 10px;font-size:13px;border-radius:8px}
+.btn:disabled{opacity:.5}
+.row{display:flex;gap:8px;align-items:center}
+.chips{display:flex;gap:6px;overflow-x:auto;margin:10px 0 4px;scrollbar-width:none}
+.chip{flex:none;border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 12px;font-size:13px}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.list{display:grid;gap:8px}
+.it{display:grid;grid-template-columns:60px 1fr auto;gap:10px;align-items:center;background:#fff;border-radius:10px;padding:8px;box-shadow:var(--shadow)}
+.it img{width:60px;height:60px;object-fit:cover;border-radius:7px;background:#eee}
+.it .nm{font-size:13.5px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.it .pr{font-size:13px;color:var(--accent);font-weight:700;margin-top:2px}
+.it .acts{display:flex;flex-direction:column;gap:6px}
+.tag{display:inline-block;font-size:11px;border-radius:4px;padding:0 5px;margin-right:4px;vertical-align:1px}
+.tag.c{background:#e7f3ec;color:var(--ok)}.tag.m{background:#fff3dc;color:var(--warn)}.tag.h{background:#eee;color:#777}
+.it.off{opacity:.55}
+.fab{position:fixed;right:18px;bottom:22px;height:52px;padding:0 20px;border-radius:26px;border:0;background:var(--accent);color:#fff;font-weight:800;font-size:16px;box-shadow:0 6px 18px rgba(229,56,31,.35);z-index:20}
+.imgs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media(min-width:600px){.imgs{grid-template-columns:repeat(6,1fr)}}
+.imgs .ph{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:#eee;border:1px solid var(--line)}
+.imgs .ph img{width:100%;height:100%;object-fit:cover}
+.imgs .ph .x{position:absolute;top:3px;right:3px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:13px;line-height:24px;padding:0}
+.imgs .ph .l{position:absolute;bottom:3px;left:3px;height:22px;border-radius:6px;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:0 6px}
+.imgs .ph .cv{position:absolute;bottom:3px;left:3px;background:var(--accent);color:#fff;font-size:11px;border-radius:5px;padding:0 6px}
+.imgs .add{aspect-ratio:1;border:2px dashed #ccc;border-radius:8px;display:grid;place-items:center;color:var(--ink2);font-size:12.5px;text-align:center;cursor:pointer;background:#fafafa}
+.imgs .up{display:grid;place-items:center;font-size:12px;color:var(--ink2)}
+.vrow{display:grid;grid-template-columns:1fr 92px 70px 32px;gap:6px;margin-top:8px;align-items:center}
+.vrow input{padding:9px 8px}
+.vhead{display:grid;grid-template-columns:1fr 92px 70px 32px;gap:6px;font-size:12px;color:var(--ink2);margin-top:6px}
+.del{border:0;background:none;color:#999;font-size:18px;padding:0}
+.hint{font-size:12.5px;color:var(--ink2);margin-top:6px}
+.sw{display:flex;align-items:center;gap:10px;font-weight:600}
+.sw input{width:22px;height:22px;accent-color:var(--ok)}
+.bar{position:sticky;bottom:0;background:rgba(244,244,242,.95);backdrop-filter:blur(6px);padding:10px 0 14px;display:flex;gap:10px}
+.bar .btn{flex:1}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:rgba(22,24,29,.92);color:#fff;padding:10px 18px;border-radius:999px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:50;white-space:nowrap}
+.toast.on{opacity:1}
+.err{color:var(--accent);font-size:13px;margin-top:8px}
+.more{display:block;margin:14px auto;padding:8px 20px;border:1px solid var(--line);background:#fff;border-radius:999px}
+.empty{text-align:center;color:var(--ink2);padding:40px 0}
+</style>
+</head>
+<body>
+<header><div class="hd"><b>W</b><h1>商城後台</h1><a href="./" target="_blank">看商城 ↗</a></div></header>
+<main id="app"><div class="empty">載入中…</div></main>
+<div class="toast" id="toast"></div>
+<input type="file" id="file" accept="image/*" multiple hidden>
+<script src="shopee-sync.js"></script>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = n => 'NT$' + Number(n).toLocaleString('en-US');
+const ls = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }, del(k) { try { localStorage.removeItem(k); } catch (e) {} } };
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2000); }
+
+let CFG, PROD, IMG, BASE = {}, ROWS = {}, pw = ls.get('wade_admin_pw', '');
+let view = { tab: 'all', q: '', shown: 30 };
+const img = (id, tn) => {
+  if (!id) return '';
+  if (/^https?:/.test(id)) return /googleusercontent\.com\/d\//.test(id) ? id + (tn ? '=s400' : '=s1200') : id;
+  return IMG + id + (tn ? '_tn' : '');
+};
+
+async function api(op, extra) {
+  if (!CFG.gasUrl) throw new Error('config.json 尚未設定 gasUrl');
+  const r = await fetch(CFG.gasUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'shop_order', op, pw, ...extra }) });
+  const j = await r.json();
+  if (!j.ok) { if (j.error === '密碼錯誤') { pw = ''; ls.del('wade_admin_pw'); } throw new Error(j.error || '失敗'); }
+  return j;
+}
+
+/* ---------- 啟動 ---------- */
+Promise.all([fetch('config.json', { cache: 'no-cache' }).then(r => r.json()), fetch('products.json', { cache: 'no-cache' }).then(r => r.json())])
+  .then(([c, p]) => { CFG = c; PROD = p; IMG = p.img; p.items.forEach((x, k) => { x._k = k; BASE[x.i] = x; }); pw ? loadRows() : viewLogin(); })
+  .catch(e => { $('#app').innerHTML = '<div class="empty">載入失敗：' + esc(e.message) + '</div>'; });
+
+function viewLogin(msg) {
+  $('#app').innerHTML = `<div class="box" style="max-width:380px;margin:40px auto"><h2>登入商城後台</h2>
+    <label class="f"><span>後台密碼</span><input type="password" id="pw" autocomplete="current-password"></label>
+    <button class="btn solid" style="width:100%;margin-top:14px" id="go">登入</button><div class="err" id="er">${esc(msg || '')}</div></div>`;
+  const go = async () => {
+    pw = $('#pw').value.trim(); if (!pw) return;
+    $('#go').disabled = true; $('#go').textContent = '登入中…';
+    try { await api('login'); ls.set('wade_admin_pw', pw); loadRows(); }
+    catch (e) { $('#er').textContent = e.message; $('#go').disabled = false; $('#go').textContent = '登入'; }
+  };
+  $('#go').onclick = go; $('#pw').onkeydown = e => { if (e.key === 'Enter') go(); };
+}
+
+async function loadRows() {
+  $('#app').innerHTML = '<div class="empty">讀取商品資料…</div>';
+  try { const j = await api('list'); ROWS = {}; j.rows.forEach(r => ROWS[r.id] = r); viewList(); }
+  catch (e) { pw ? $('#app').innerHTML = `<div class="empty">${esc(e.message)}<br><br><button class="btn" onclick="location.reload()">重試</button></div>` : viewLogin(e.message); }
+}
+
+/* ---------- 商品清單 ---------- */
+function allItems() {
+  const out = [];
+  Object.values(ROWS).forEach(r => { if (!BASE[r.id] && r.item) out.push({ ...r.item, i: r.id, _kind: 'c', _on: r.on, _t: r.t }); });
+  out.sort((a, b) => b._t - a._t);
+  PROD.items.forEach(p => {
+    const r = ROWS[p.i];
+    if (!r) out.push({ ...p, _kind: 's', _on: true });
+    else out.push({ ...(r.item || p), i: p.i, _kind: r.item ? 'm' : 's', _on: r.on });
+  });
+  return out;
+}
+function viewList() {
+  const tabs = [['all', '全部'], ['c', '我新增的'], ['m', '已修改'], ['off', '已下架']];
+  let list = allItems();
+  const cnt = { all: list.length, c: list.filter(x => x._kind === 'c').length, m: list.filter(x => x._kind === 'm').length, off: list.filter(x => !x._on).length };
+  if (view.tab === 'c' || view.tab === 'm') list = list.filter(x => x._kind === view.tab);
+  if (view.tab === 'off') list = list.filter(x => !x._on);
+  if (view.q) { const ks = view.q.toLowerCase().split(/\s+/); list = list.filter(x => { const s = (x.n + ' ' + x.i).toLowerCase(); return ks.every(k => s.includes(k)); }); }
+  $('#app').innerHTML = `<div class="row" style="margin-bottom:10px"><input id="q" type="search" placeholder="搜尋商品名稱" value="${esc(view.q)}"><button class="btn sm" style="height:44px;white-space:nowrap" id="sync">從蝦皮同步</button></div>
+    <div class="chips">${tabs.map(([k, n]) => `<button class="chip${view.tab === k ? ' on' : ''}" data-t="${k}">${n} ${cnt[k]}</button>`).join('')}</div>
+    <div class="list" id="list">${list.slice(0, view.shown).map(row).join('') || '<div class="empty">沒有商品</div>'}</div>
+    ${list.length > view.shown ? '<button class="more" id="more">看更多</button>' : ''}
+    <button class="fab" id="new">＋ 新增商品</button>`;
+  let qt; $('#q').oninput = e => { clearTimeout(qt); qt = setTimeout(() => { view.q = e.target.value.trim(); view.shown = 30; viewList(); $('#q').focus(); }, 300); };
+  document.querySelectorAll('.chip').forEach(b => b.onclick = () => { view.tab = b.dataset.t; view.shown = 30; viewList(); });
+  if ($('#more')) $('#more').onclick = () => { view.shown += 30; viewList(); };
+  $('#new').onclick = () => viewEdit(null);
+  $('#sync').onclick = () => viewSync();
+  $('#list').onclick = async e => {
+    const b = e.target.closest('button[data-a]'); if (!b) return;
+    const id = b.dataset.id, it = list.find(x => x.i === id);
+    if (b.dataset.a === 'edit') return viewEdit(it);
+    b.disabled = true;
+    try { await api('toggle', { id, on: !it._on, name: it.n }); toast(it._on ? '已下架' : '已上架'); await reloadRowsQuiet(); viewList(); }
+    catch (err) { toast(err.message); b.disabled = false; }
+  };
+}
+function row(x) {
+  const tag = (x._kind === 'c' ? '<span class="tag c">新增</span>' : x._kind === 'm' ? '<span class="tag m">已修改</span>' : '') + (x._on ? '' : '<span class="tag h">下架</span>');
+  return `<div class="it${x._on ? '' : ' off'}"><img src="${img(x.im && x.im[0], 1)}" loading="lazy" alt="">
+    <div><div class="nm">${tag}${esc(x.n)}</div><div class="pr">${x.p === x.P ? money(x.p) : money(x.p) + '–' + Number(x.P).toLocaleString()}</div></div>
+    <div class="acts"><button class="btn sm" data-a="edit" data-id="${esc(x.i)}">編輯</button><button class="btn sm gray" data-a="tog" data-id="${esc(x.i)}">${x._on ? '下架' : '上架'}</button></div></div>`;
+}
+async function reloadRowsQuiet() { const j = await api('list'); ROWS = {}; j.rows.forEach(r => ROWS[r.id] = r); }
+
+/* ---------- 編輯 / 新增 ---------- */
+let descCache = null;
+async function viewEdit(x) {
+  const isNew = !x, isShopee = !!(x && BASE[x.i]);
+  const it = x ? JSON.parse(JSON.stringify(x)) : { n: '', c: catList()[0], im: [], v: [['', '', '', '']], t: '' };
+  if (isShopee && it.d == null) {
+    $('#app').innerHTML = '<div class="empty">讀取商品說明…</div>';
+    if (!descCache) descCache = await fetch('desc.json').then(r => r.json()).catch(() => ({}));
+    it.d = (descCache[it.i] || [''])[0];
+  }
+  const on = x ? x._on !== false : true;
+  window.scrollTo(0, 0);
+  $('#app').innerHTML = `<button class="btn sm gray" id="back">‹ 返回清單</button>
+  <div class="box" style="margin-top:12px"><h2>${isNew ? '新增商品' : isShopee ? '修改蝦皮商品' : '編輯商品'}</h2>
+    ${isShopee ? '<div class="hint" style="margin-top:-6px">修改只會影響網站，不會改到蝦皮</div>' : ''}
+    <label class="f"><span>商品名稱 *</span><input id="n" value="${esc(it.n)}" placeholder="例：APEXX 煞車拉桿 勁戰六代"></label>
+    <label class="f"><span>分類</span><select id="c">${catList().map(c => `<option value="${esc(c)}"${c === it.c ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
+    <label class="f sw" style="margin-top:14px"><input type="checkbox" id="on"${on ? ' checked' : ''}> 上架中（取消勾選＝下架，客人看不到）</label>
+  </div>
+  <div class="box"><h2>商品圖片 *</h2><div class="imgs" id="imgs"></div><div class="hint">第一張是封面。點「←」可往前移。照片會自動縮小再上傳。</div></div>
+  <div class="box"><h2>規格與價格 *</h2>
+    <label class="f" style="margin-top:0"><span>規格名稱（例：顏色、車種；沒有規格可留空）</span><input id="t" value="${esc(it.t || '')}"></label>
+    <div class="vhead"><span>選項</span><span>價格 *</span><span>庫存</span><span></span></div>
+    <div id="vs"></div>
+    <button class="btn sm" style="margin-top:10px" id="addv">＋ 新增一個選項</button>
+    <div class="hint">兩層規格用逗號分開，例：「黑色,長版」「黑色,短版」。庫存留空＝有貨；填 0＝售完。</div></div>
+  <div class="box"><h2>商品說明</h2><textarea id="d" rows="7" placeholder="特色、適用車種、注意事項…">${esc(it.d || '')}</textarea></div>
+  <div class="err" id="er"></div>
+  <div class="bar">
+    ${isNew ? '' : `<button class="btn gray" id="rm">${isShopee ? '還原蝦皮原始' : '刪除'}</button>`}
+    <button class="btn solid" id="save">儲存</button></div>`;
+
+  const ims = [...(it.im || [])];
+  function drawImgs(uploading) {
+    $('#imgs').innerHTML = ims.map((id, k) => `<div class="ph"><img src="${img(id, 1)}" alt=""><button class="x" data-x="${k}">✕</button>${k ? `<button class="l" data-l="${k}">←</button>` : '<span class="cv">封面</span>'}</div>`).join('') +
+      (uploading ? `<div class="ph up">上傳中 ${uploading}</div>` : '') + `<label class="add" for="file">＋<br>加照片</label>`;
+  }
+  drawImgs();
+  $('#imgs').onclick = e => {
+    const xb = e.target.closest('[data-x]'), lb = e.target.closest('[data-l]');
+    if (xb) { ims.splice(+xb.dataset.x, 1); drawImgs(); }
+    if (lb) { const k = +lb.dataset.l; [ims[k - 1], ims[k]] = [ims[k], ims[k - 1]]; drawImgs(); }
+  };
+  $('#file').value = '';
+  $('#file').onchange = async e => {
+    const files = [...e.target.files]; e.target.value = '';
+    for (let k = 0; k < files.length; k++) {
+      drawImgs(`${k + 1}/${files.length}`);
+      try { const b64 = await shrink(files[k]); const j = await api('upload', { mime: 'image/jpeg', data: b64 }); ims.push(j.url); }
+      catch (err) { toast('上傳失敗：' + err.message); }
+    }
+    drawImgs();
+  };
+
+  const vs = (it.v || []).map(v => [...v]);
+  if (!vs.length) vs.push(['', '', '', '']);
+  function drawVs() {
+    $('#vs').innerHTML = vs.map((v, k) => `<div class="vrow"><input data-k="${k}" data-f="0" value="${esc(v[0])}" placeholder="${k ? '' : '例：黑色'}">
+      <input data-k="${k}" data-f="1" type="number" inputmode="numeric" value="${esc(v[1])}" placeholder="價格">
+      <input data-k="${k}" data-f="2" type="number" inputmode="numeric" value="${v[2] === 99 && (isNew || !isShopee) ? '' : esc(v[2])}" placeholder="有貨">
+      <button class="del" data-rm="${k}">✕</button></div>`).join('');
+  }
+  drawVs();
+  $('#vs').oninput = e => { const i = e.target.closest('input[data-k]'); if (i) vs[+i.dataset.k][+i.dataset.f] = i.value; };
+  $('#vs').onclick = e => { const b = e.target.closest('[data-rm]'); if (b && vs.length > 1) { vs.splice(+b.dataset.rm, 1); drawVs(); } };
+  $('#addv').onclick = () => { vs.push(['', vs[vs.length - 1][1] || '', '', '']); drawVs(); };
+  $('#back').onclick = () => viewList();
+
+  $('#save').onclick = async () => {
+    const er = $('#er'); er.textContent = '';
+    const item = { i: isNew ? '' : it.i, n: $('#n').value.trim(), c: $('#c').value, t: $('#t').value.trim(), im: ims, d: $('#d').value.trim(),
+      v: vs.filter(v => String(v[0]).trim() || String(v[1]).trim()).map(v => [String(v[0]).trim(), Number(v[1]), v[2] === '' ? '' : Number(v[2]), v[3] || '']) };
+    if (!item.n) return er.textContent = '請填寫商品名稱';
+    if (!item.im.length) return er.textContent = '請至少上傳 1 張圖片';
+    if (!item.v.length || item.v.some(v => !(v[1] > 0))) return er.textContent = '每個選項都要填價格';
+    if (item.v.length > 1 && item.v.some(v => !v[0])) return er.textContent = '有多個選項時，每個選項都要填名稱';
+    if (isShopee && it.oi) item.oi = it.oi;
+    const b = $('#save'); b.disabled = true; b.textContent = '儲存中…';
+    try { await api('save', { item, on: $('#on').checked, src: isShopee ? 'shopee' : 'custom' }); toast('已儲存，網站約 5 分鐘內更新'); await reloadRowsQuiet(); viewList(); }
+    catch (err) { er.textContent = err.message; b.disabled = false; b.textContent = '儲存'; }
+  };
+  if ($('#rm')) $('#rm').onclick = async () => {
+    if (!confirm(isShopee ? '要還原成蝦皮的原始資料嗎？（你在網站做的修改會清掉）' : '確定刪除這個商品？')) return;
+    try { await api('delete', { id: it.i }); toast(isShopee ? '已還原' : '已刪除'); await reloadRowsQuiet(); viewList(); }
+    catch (err) { $('#er').textContent = err.message; }
+  };
+}
+
+function catList() { return (CFG.categories || PROD.cats).map(c => c.n); }
+
+/* ---------- 從蝦皮同步 ---------- */
+function viewSync() {
+  window.scrollTo(0, 0);
+  $('#app').innerHTML = `<button class="btn sm gray" id="back">‹ 返回清單</button>
+  <div class="box" style="margin-top:12px"><h2>從蝦皮同步商品</h2>
+    <ol style="margin:0;padding-left:20px;font-size:14px;line-height:1.8">
+      <li>用電腦到蝦皮賣家中心 → 我的商品 → 批次處理</li>
+      <li>分別下載 3 個模板：<b>商品標題及描述</b>、<b>價格及庫存</b>、<b>媒體資訊</b></li>
+      <li>在下面一次選取這 3 個檔案（zip 不用解壓）</li></ol>
+    <label class="f"><span>選擇檔案</span><input type="file" id="sf" multiple accept=".xlsx,.zip"></label>
+    <div class="hint">你在官網改過的價格、分類、說明、上下架都會保留，不會被蓋掉。</div>
+    <div id="sr" style="margin-top:14px"></div></div>`;
+  $('#back').onclick = () => viewList();
+  $('#sf').onchange = async e => {
+    const files = [...e.target.files]; if (!files.length) return;
+    const sr = $('#sr'), log = t => sr.innerHTML = `<div class="hint">⏳ ${esc(t)}…</div>`;
+    try {
+      const r = await ShopeeSync.build(files, CFG, log);
+      const oldIds = new Set(PROD.items.map(p => p.i)), newIds = new Set(r.products.items.map(p => p.i));
+      const added = r.products.items.filter(p => !oldIds.has(p.i)), removed = PROD.items.filter(p => !newIds.has(p.i));
+      let changed = 0; const byOld = {}; PROD.items.forEach(p => byOld[p.i] = p);
+      r.products.items.forEach(p => { const o = byOld[p.i]; if (o && JSON.stringify(o.v) !== JSON.stringify(p.v)) changed++; });
+      sr.innerHTML = `<div class="box" style="background:#f7f7f5;box-shadow:none;margin:0"><b>讀取完成</b>
+        <div style="font-size:14px;margin-top:6px;line-height:1.8">商品 ${r.stats.items} 個（規格 ${r.stats.vars} 個）<br>
+        🆕 新商品 <b>${added.length}</b> 個　✏️ 價格／庫存有變 <b>${changed}</b> 個　🗑 蝦皮已刪除 <b>${removed.length}</b> 個</div>
+        ${added.length ? `<div class="hint">新商品：${added.slice(0, 5).map(p => esc(p.n.slice(0, 18))).join('、')}${added.length > 5 ? '…' : ''}</div>` : ''}
+        <button class="btn solid" style="width:100%;margin-top:12px" id="pub">發佈到網站</button><div class="err" id="pe"></div></div>`;
+      $('#pub').onclick = async () => {
+        const b = $('#pub'); b.disabled = true; b.textContent = '發佈中（約 10 秒）…';
+        try {
+          await api('publish', { products: JSON.stringify(r.products), desc: JSON.stringify(r.desc) });
+          PROD = r.products; BASE = {}; PROD.items.forEach((x, k) => { x._k = k; BASE[x.i] = x; }); descCache = r.desc;
+          sr.innerHTML = '<div class="box" style="background:#e7f3ec;box-shadow:none;margin:0">✅ 已發佈！網站約 1～2 分鐘後更新。</div>';
+        } catch (err) { $('#pe').textContent = err.message; b.disabled = false; b.textContent = '發佈到網站'; }
+      };
+    } catch (err) { sr.innerHTML = `<div class="err">${esc(err.message)}</div>`; }
+  };
+}
+
+// 手機照片縮到最長邊 1200px 的 JPEG，回傳 base64
+function shrink(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      const s = Math.min(1, 1200 / Math.max(im.width, im.height));
+      const cv = document.createElement('canvas'); cv.width = Math.round(im.width * s); cv.height = Math.round(im.height * s);
+      const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(im, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(url); res(cv.toDataURL('image/jpeg', 0.85).split(',')[1]);
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); rej(new Error('無法讀取這張照片')); };
+    im.src = url;
+  });
+}
+})();
+</script>
+</body>
+</html>
