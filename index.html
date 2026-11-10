@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>韋德機車精品 線上商城</title>
+<meta name="description" content="韋德機車精品 — 機車改裝零件、精品配件線上購物，新莊頭前庄門市，可來店自取、7-11 店到店、宅配。">
+<meta name="theme-color" content="#16181d">
+<style>
+:root{
+  --bg:#f4f4f2; --card:#fff; --ink:#16181d; --ink2:#5b5f68; --line:#e3e3df;
+  --brand:#16181d; --accent:#e5381f; --accent-ink:#fff; --ok:#1f8a4c; --warn:#b26a00;
+  --r:12px; --shadow:0 1px 2px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.05);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;padding-bottom:env(safe-area-inset-bottom)}
+a{color:inherit}
+button{font:inherit;color:inherit;cursor:pointer}
+img{display:block;max-width:100%}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+
+/* header */
+header{position:sticky;top:0;z-index:20;background:var(--brand);color:#fff}
+.hd{display:flex;align-items:center;gap:10px;height:56px}
+.logo{display:flex;align-items:center;gap:8px;text-decoration:none;font-weight:800;letter-spacing:.5px;white-space:nowrap}
+.logo b{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;background:var(--accent);font-size:16px}
+.logo span{font-size:16px}
+.search{flex:1;display:flex;align-items:center;background:#2a2d35;border-radius:10px;height:38px;padding:0 10px;min-width:0}
+.search input{flex:1;min-width:0;border:0;background:transparent;color:#fff;font:inherit;outline:none}
+.search input::placeholder{color:#9aa0aa}
+.search svg{flex:none;opacity:.7}
+.xbtn{border:0;background:none;color:#9aa0aa;padding:4px;display:none}
+.cartbtn{position:relative;border:0;background:none;color:#fff;padding:6px;display:flex}
+.badge{position:absolute;top:0;right:-2px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);font-size:11px;font-weight:700;display:grid;place-items:center}
+.badge:empty{display:none}
+.cats{display:flex;gap:8px;overflow-x:auto;padding:8px 16px 10px;scrollbar-width:none;max-width:1180px;margin:0 auto}
+.cats::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid #3a3e48;background:transparent;color:#d6d8dd;border-radius:999px;padding:5px 12px;font-size:13px;white-space:nowrap}
+.chip.on{background:#fff;color:var(--ink);border-color:#fff;font-weight:700}
+
+/* list */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0 10px}
+.bar h1{font-size:17px;margin:0}
+.bar small{color:var(--ink2);font-weight:400;margin-left:6px}
+select.sort{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 8px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:640px){.grid{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:900px){.grid{grid-template-columns:repeat(5,1fr);gap:14px}}
+.pc{background:var(--card);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);text-decoration:none;display:flex;flex-direction:column}
+.pc .im{aspect-ratio:1;background:#eceae6;position:relative}
+.pc .im img{width:100%;height:100%;object-fit:cover}
+.pc .so{position:absolute;inset:0;background:rgba(255,255,255,.6);display:grid;place-items:center;font-weight:700;color:var(--ink2)}
+.pc .tx{padding:8px 10px 10px;display:flex;flex-direction:column;gap:6px;flex:1}
+.pc .nm{font-size:13.5px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.8em}
+.price{color:var(--accent);font-weight:800}
+.pc .price{margin-top:auto;font-size:15px}
+.more{display:block;margin:18px auto;padding:10px 22px;border:1px solid var(--line);background:#fff;border-radius:999px}
+.empty{text-align:center;color:var(--ink2);padding:60px 0}
+
+/* detail */
+.back{display:inline-flex;align-items:center;gap:4px;margin:12px 0;border:0;background:none;color:var(--ink2);padding:4px 0}
+.pd{display:grid;gap:16px}
+@media(min-width:900px){.pd{grid-template-columns:1fr 1fr;gap:28px;align-items:start}}
+.gal{background:#fff;border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
+.slides{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
+.slides::-webkit-scrollbar{display:none}
+.slides img{flex:none;width:100%;aspect-ratio:1;object-fit:contain;scroll-snap-align:center;background:#fff}
+.thumbs{display:flex;gap:6px;padding:8px;overflow-x:auto}
+.thumbs img{width:56px;height:56px;object-fit:cover;border-radius:6px;border:2px solid transparent;flex:none;cursor:pointer}
+.thumbs img.on{border-color:var(--accent)}
+.info{background:#fff;border-radius:var(--r);padding:16px;box-shadow:var(--shadow)}
+.info h1{font-size:18px;line-height:1.45;margin:0 0 8px}
+.info .price{font-size:24px}
+.tier{margin-top:16px}
+.tier h3{font-size:13px;color:var(--ink2);margin:0 0 8px;font-weight:600}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 11px;font-size:13.5px;text-align:left;line-height:1.35}
+.opt.on{border-color:var(--accent);color:var(--accent);background:#fff5f3;font-weight:700}
+.opt:disabled{color:#b8b8b8;background:#f6f6f6;text-decoration:line-through;cursor:not-allowed}
+.qty{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.qty button{width:38px;height:36px;border:0;background:#f6f6f4;font-size:18px}
+.qty input{width:46px;height:36px;border:0;text-align:center;font:inherit;-moz-appearance:textfield}
+.qty input::-webkit-inner-spin-button{display:none}
+.row{display:flex;align-items:center;gap:12px;margin-top:16px}
+.row .lab{font-size:13px;color:var(--ink2);width:40px}
+.stock{font-size:12.5px;color:var(--ink2)}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+.btn{height:46px;border-radius:10px;border:1px solid var(--accent);background:#fff;color:var(--accent);font-weight:700;font-size:15px}
+.btn.solid{background:var(--accent);color:var(--accent-ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.block{width:100%}
+.tip{margin-top:14px;font-size:12.5px;color:var(--warn);background:#fff7e8;border-radius:8px;padding:8px 10px}
+.desc{background:#fff;border-radius:var(--r);padding:16px;box-shadow:var(--shadow);margin-top:16px}
+.desc h2,.box h2{font-size:15px;margin:0 0 10px}
+.desc pre{white-space:pre-wrap;font:inherit;margin:0 0 12px;color:#2c2f36}
+.desc img{width:100%;max-width:720px;margin:0 auto 6px;border-radius:6px}
+
+/* cart / checkout */
+.box{background:#fff;border-radius:var(--r);padding:16px;box-shadow:var(--shadow);margin-bottom:14px}
+.ci{display:grid;grid-template-columns:72px 1fr;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.ci:last-child{border-bottom:0}
+.ci img{width:72px;height:72px;object-fit:cover;border-radius:8px;background:#eee}
+.ci .nm{font-size:13.5px;line-height:1.4;text-decoration:none;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ci .vn{font-size:12px;color:var(--ink2);margin-top:2px}
+.ci .bt{display:flex;align-items:center;justify-content:space-between;margin-top:8px;gap:8px}
+.ci .qty button{width:32px;height:30px}
+.ci .qty input{width:38px;height:30px}
+.del{border:0;background:none;color:var(--ink2);font-size:12.5px;text-decoration:underline}
+.sum{display:flex;justify-content:space-between;padding:4px 0}
+.sum.total{font-size:18px;font-weight:800;border-top:1px solid var(--line);margin-top:6px;padding-top:10px}
+.sum.total span:last-child{color:var(--accent)}
+.lay{display:grid;gap:14px}
+@media(min-width:900px){.lay{grid-template-columns:1.4fr 1fr;align-items:start}}
+.radios{display:grid;gap:8px}
+.radio{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:11px 12px;cursor:pointer}
+.radio.on{border-color:var(--accent);background:#fff5f3}
+.radio input{accent-color:var(--accent);width:18px;height:18px;margin:0}
+.radio .r{flex:1}
+.radio small{color:var(--ink2)}
+.f{display:block;margin-top:12px}
+.f span{display:block;font-size:13px;color:var(--ink2);margin-bottom:4px}
+.f span i{color:var(--accent);font-style:normal}
+.f input,.f textarea{width:100%;font:inherit;border:1px solid var(--line);border-radius:8px;padding:10px 11px;background:#fff}
+.f input:focus,.f textarea:focus{outline:2px solid #f3b4a9;border-color:var(--accent)}
+.f.err input,.f.err textarea{border-color:var(--accent)}
+.f .em{color:var(--accent);font-size:12px;display:none;margin-top:3px}
+.f.err .em{display:block}
+.hint{font-size:12.5px;color:var(--ink2);margin-top:6px}
+.hint a{color:#1a5fb4}
+.agree{display:flex;gap:8px;align-items:flex-start;font-size:13px;margin-top:14px}
+.agree input{margin-top:3px;accent-color:var(--accent)}
+.hp{position:absolute;left:-9999px}
+.done{text-align:center;padding:10px 0}
+.done .ck{width:64px;height:64px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;margin:10px auto;font-size:34px}
+.ono{font-size:22px;font-weight:800;letter-spacing:1px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;text-align:left;font-size:14px}
+.kv dt{color:var(--ink2)}
+.kv dd{margin:0;font-weight:600;word-break:break-all}
+.copy{border:1px solid var(--line);background:#fff;border-radius:6px;font-size:12px;padding:1px 8px;margin-left:6px}
+.linebtn{display:flex;align-items:center;justify-content:center;gap:8px;height:46px;border-radius:10px;background:#06c755;color:#fff;font-weight:700;text-decoration:none;margin-top:12px}
+.demo{background:#fff1c2;color:#6b4a00;font-size:13px;text-align:center;padding:6px 10px}
+footer{margin-top:30px;background:#fff;border-top:1px solid var(--line);padding:22px 0 30px;font-size:13px;color:var(--ink2)}
+footer h3{font-size:14px;color:var(--ink);margin:0 0 6px}
+footer ul{margin:0 0 14px;padding-left:18px}
+.fgrid{display:grid;gap:12px}
+@media(min-width:760px){.fgrid{grid-template-columns:1fr 1fr}}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:rgba(22,24,29,.92);color:#fff;padding:10px 18px;border-radius:999px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:50}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.loading{padding:80px 0;text-align:center;color:var(--ink2)}
+</style>
+</head>
+<body>
+<div id="demo" class="demo" hidden>測試模式：尚未設定接單網址，訂單不會送出</div>
+<header>
+  <div class="wrap hd">
+    <a class="logo" href="#/"><b>W</b><span>韋德機車精品</span></a>
+    <label class="search">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="搜尋商品、品牌、車種" enterkeyhint="search" autocomplete="off">
+      <button class="xbtn" id="qx" aria-label="清除">✕</button>
+    </label>
+    <button class="cartbtn" id="cartBtn" aria-label="購物車">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 4h2l2.2 10.4a1.5 1.5 0 0 0 1.5 1.1h8.6a1.5 1.5 0 0 0 1.5-1.1L21 8H6.2"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg>
+      <span class="badge" id="badge"></span>
+    </button>
+  </div>
+  <nav class="cats" id="cats"></nav>
+</header>
+<main class="wrap" id="app"><div class="loading">載入商品中…</div></main>
+<footer><div class="wrap fgrid" id="foot"></div></footer>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = n => 'NT$' + Number(n).toLocaleString('en-US');
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+
+let CFG, DATA, IMG, BYID = {}, DESC = null, descP = null;
+let state = { cat: '', q: '', sort: 'def', shown: 40 };
+let cart = store.get('wade_cart', []);   // [{i, v(variationId), q}]
+let lastOrder = store.get('wade_last_order', null);
+
+const img = (id, tn) => id ? IMG + id + (tn ? '_tn' : '') : '';
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 1800); }
+
+/* ---------- load ---------- */
+Promise.all([
+  fetch('config.json', { cache: 'no-cache' }).then(r => r.json()),
+  fetch('products.json', { cache: 'no-cache' }).then(r => r.json())
+]).then(([c, d]) => {
+  CFG = c; DATA = d; IMG = d.img;
+  d.items.forEach((p, idx) => { p._idx = idx; p._s = (p.n + ' ' + p.v.map(v => v[0]).join(' ')).toLowerCase(); BYID[p.i] = p; });
+  if (!CFG.gasUrl) $('#demo').hidden = false;
+  cleanCart(); renderCats(); renderFoot(); badge(); route();
+}).catch(e => { $('#app').innerHTML = '<div class="empty">載入失敗，請重新整理頁面</div>'; console.error(e); });
+
+function loadDesc() { return descP || (descP = fetch('desc.json').then(r => r.json()).then(d => DESC = d).catch(() => DESC = {})); }
+
+/* ---------- cart ---------- */
+function findVar(p, vid) { return p && p.v.find(v => v[3] === vid); }
+function cleanCart() { cart = cart.filter(c => findVar(BYID[c.i], c.v)); saveCart(); }
+function saveCart() { store.set('wade_cart', cart); badge(); }
+function badge() { const n = cart.reduce((a, c) => a + c.q, 0); $('#badge').textContent = n ? (n > 99 ? '99+' : n) : ''; }
+function maxQty(v) { return Math.max(1, Math.min(99, v[2] || 99)); }
+function addCart(i, vid, q) {
+  const v = findVar(BYID[i], vid); const ex = cart.find(c => c.i === i && c.v === vid);
+  if (ex) ex.q = Math.min(maxQty(v), ex.q + q); else cart.push({ i, v: vid, q: Math.min(maxQty(v), q) });
+  saveCart();
+}
+function cartLines() {
+  return cart.map(c => { const p = BYID[c.i], v = findVar(p, c.v); return { c, p, v, sub: v[1] * c.q }; });
+}
+function shipFee(method, subtotal) {
+  const s = CFG.shipping[method]; if (!s) return 0;
+  if (CFG.freeShippingOver > 0 && subtotal >= CFG.freeShippingOver && method !== 'store') return 0;
+  return s.fee || 0;
+}
+
+/* ---------- router ---------- */
+window.addEventListener('hashchange', route);
+function route() {
+  if (!DATA) return;
+  const h = location.hash.replace(/^#\/?/, '').split('/');
+  window.scrollTo(0, 0); $('#app').onclick = $('#app').onchange = null;
+  if (h[0] === 'p' && BYID[h[1]]) return viewProduct(BYID[h[1]]);
+  if (h[0] === 'cart') return viewCart();
+  if (h[0] === 'checkout') return cart.length ? viewCheckout() : (location.hash = '#/cart');
+  if (h[0] === 'done') return viewDone();
+  state.cat = h[0] === 'c' ? (h[1] || '') : '';
+  state.shown = 40; viewList();
+}
+
+/* ---------- category bar ---------- */
+function renderCats() {
+  const el = $('#cats');
+  el.innerHTML = `<button class="chip" data-c="">全部</button>` + DATA.cats.map(c => `<button class="chip" data-c="${c.k}">${esc(c.n)}</button>`).join('');
+  el.onclick = e => { const b = e.target.closest('.chip'); if (!b) return; location.hash = b.dataset.c ? '#/c/' + b.dataset.c : '#/'; };
+}
+function markCat() {
+  document.querySelectorAll('.chip').forEach(b => b.classList.toggle('on', b.dataset.c === state.cat && !location.hash.match(/#\/(p|cart|checkout|done)/)));
+  const on = document.querySelector('.chip.on'); if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' });
+}
+
+/* ---------- search ---------- */
+$('#cartBtn').onclick = () => { location.hash = '#/cart'; };
+const qEl = $('#q'), qx = $('#qx');
+let qt;
+qEl.addEventListener('input', () => {
+  qx.style.display = qEl.value ? 'block' : 'none';
+  clearTimeout(qt); qt = setTimeout(() => {
+    state.q = qEl.value.trim(); state.shown = 40;
+    if (/^#\/(p|cart|checkout|done)/.test(location.hash)) location.hash = state.cat ? '#/c/' + state.cat : '#/'; else viewList();
+  }, 220);
+});
+qEl.addEventListener('keydown', e => { if (e.key === 'Enter') qEl.blur(); });
+qx.onclick = e => { e.preventDefault(); qEl.value = ''; qx.style.display = 'none'; state.q = ''; viewList(); };
+
+/* ---------- list view ---------- */
+function filtered() {
+  let list = DATA.items;
+  if (state.cat) list = list.filter(p => p.c === state.cat);
+  if (state.q) { const ks = state.q.toLowerCase().split(/\s+/).filter(Boolean); list = list.filter(p => ks.every(k => p._s.includes(k))); }
+  if (state.sort === 'asc') list = [...list].sort((a, b) => a.p - b.p);
+  else if (state.sort === 'desc') list = [...list].sort((a, b) => b.p - a.p);
+  else list = [...list].sort((a, b) => (a.so || 0) - (b.so || 0) || a._idx - b._idx);
+  return list;
+}
+function priceTxt(p) { return p.p === p.P ? money(p.p) : money(p.p) + ' – ' + Number(p.P).toLocaleString('en-US'); }
+function card(p) {
+  return `<a class="pc" href="#/p/${p.i}"><div class="im"><img loading="lazy" src="${img(p.im[0], 1)}" alt="">${p.so ? '<div class="so">已售完</div>' : ''}</div>
+  <div class="tx"><div class="nm">${esc(p.n)}</div><div class="price">${priceTxt(p)}</div></div></a>`;
+}
+function viewList() {
+  markCat(); document.title = '韋德機車精品 線上商城';
+  const list = filtered(); const cat = DATA.cats.find(c => c.k === state.cat);
+  const title = state.q ? `搜尋「${esc(state.q)}」` : (cat ? esc(cat.n) : '全部商品');
+  $('#app').innerHTML = `<div class="bar"><h1>${title}<small>${list.length} 件</small></h1>
+    <select class="sort" id="sort"><option value="def">最新上架</option><option value="asc">價格低→高</option><option value="desc">價格高→低</option></select></div>
+    ${list.length ? `<div class="grid" id="grid">${list.slice(0, state.shown).map(card).join('')}</div>` : `<div class="empty">找不到相關商品<br>換個關鍵字，或 <a href="${CFG.line}" target="_blank" rel="noopener">LINE 詢問我們</a></div>`}
+    ${list.length > state.shown ? '<button class="more" id="more">看更多</button>' : ''}`;
+  $('#sort').value = state.sort;
+  $('#sort').onchange = e => { state.sort = e.target.value; state.shown = 40; viewList(); };
+  const more = $('#more');
+  if (more) {
+    more.onclick = () => { const from = state.shown; state.shown += 40; $('#grid').insertAdjacentHTML('beforeend', list.slice(from, state.shown).map(card).join('')); if (state.shown >= list.length) more.remove(); };
+    if ('IntersectionObserver' in window) new IntersectionObserver((en, ob) => { if (en[0].isIntersecting && document.body.contains(more)) more.click(); else if (!document.body.contains(more)) ob.disconnect(); }, { rootMargin: '600px' }).observe(more);
+  }
+}
+
+/* ---------- product view ---------- */
+function viewProduct(p) {
+  markCat(); document.title = p.n + '｜韋德機車精品';
+  // 規格拆成 1 或 2 層
+  const split = p.v.map(v => v[0] ? v[0].split(',').map(s => s.trim()) : []);
+  const depth = Math.max(...split.map(s => s.length));
+  const two = depth === 2 && split.every(s => s.length === 2);
+  const t1 = [], t2 = [];
+  split.forEach(s => { if (s[0] !== undefined && !t1.includes(s[0])) t1.push(s[0]); if (two && !t2.includes(s[1])) t2.push(s[1]); });
+  const single = p.v.length === 1 && !p.v[0][0];
+  let sel1 = null, sel2 = null, qty = 1;
+  const firstOk = p.v.find(v => v[2] > 0);
+  if (single) sel1 = '';
+  const imgs = [...p.im];
+
+  $('#app').innerHTML = `<button class="back" onclick="history.length>1?history.back():location.hash='#/'">‹ 返回</button>
+  <div class="pd">
+    <div class="gal"><div class="slides" id="slides">${imgs.map(id => `<img src="${img(id)}" alt="" loading="lazy">`).join('')}</div>
+      ${imgs.length > 1 ? `<div class="thumbs" id="thumbs">${imgs.map((id, k) => `<img src="${img(id, 1)}" data-k="${k}" class="${k ? '' : 'on'}" alt="">`).join('')}</div>` : ''}</div>
+    <div class="info">
+      <h1>${esc(p.n)}</h1>
+      <div class="price" id="pp">${priceTxt(p)}</div>
+      ${single ? '' : `<div class="tier"><h3>${esc(p.t || '規格')}</h3><div class="opts" id="o1">${t1.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>
+      ${two ? `<div class="tier"><h3>選項</h3><div class="opts" id="o2">${t2.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}`}
+      <div class="row"><span class="lab">數量</span><div class="qty"><button id="qm">−</button><input id="qn" type="number" inputmode="numeric" value="1" min="1"><button id="qp">＋</button></div><span class="stock" id="stk"></span></div>
+      <div class="btns"><button class="btn" id="add">加入購物車</button><button class="btn solid" id="buy">直接購買</button></div>
+      <div class="tip">網站庫存與店內現貨不一定同步，下單後我們會跟您確認是否有貨。不確定是否適用您的車，歡迎先 <a href="${CFG.line}" target="_blank" rel="noopener">LINE 詢問</a>。</div>
+    </div>
+  </div>
+  <div class="desc" id="desc"><h2>商品說明</h2><div id="dbody" class="stock">載入中…</div></div>`;
+
+  // gallery
+  const slides = $('#slides');
+  const thumbs = $('#thumbs');
+  if (thumbs) {
+    thumbs.onclick = e => { const t = e.target.closest('img'); if (t) slides.scrollTo({ left: slides.clientWidth * +t.dataset.k, behavior: 'smooth' }); };
+    slides.addEventListener('scroll', () => { const k = Math.round(slides.scrollLeft / slides.clientWidth); thumbs.querySelectorAll('img').forEach((t, j) => t.classList.toggle('on', j === k)); }, { passive: true });
+  }
+  function showOptImg(o) {
+    const id = p.oi && p.oi[o]; if (!id) return;
+    let k = imgs.indexOf(id);
+    if (k < 0) { imgs.push(id); slides.insertAdjacentHTML('beforeend', `<img src="${img(id)}" alt="">`); if (thumbs) thumbs.insertAdjacentHTML('beforeend', `<img src="${img(id, 1)}" data-k="${imgs.length - 1}" alt="">`); k = imgs.length - 1; }
+    slides.scrollTo({ left: slides.clientWidth * k, behavior: 'smooth' });
+  }
+
+  const cur = () => {
+    if (single) return p.v[0];
+    if (sel1 === null || (two && sel2 === null)) return null;
+    return p.v.find((v, k) => split[k][0] === sel1 && (!two || split[k][1] === sel2)) || null;
+  };
+  const stockOf = (a, b) => p.v.some((v, k) => (a === null || split[k][0] === a) && (b === null || !two || split[k][1] === b) && v[2] > 0);
+  function refresh() {
+    document.querySelectorAll('#o1 .opt').forEach(b => { const o = b.dataset.o; b.classList.toggle('on', o === sel1); b.disabled = !stockOf(o, two ? sel2 : null); });
+    document.querySelectorAll('#o2 .opt').forEach(b => { const o = b.dataset.o; b.classList.toggle('on', o === sel2); b.disabled = !stockOf(sel1, o); });
+    const v = cur();
+    $('#pp').textContent = v ? money(v[1]) : priceTxt(p);
+    const ok = !!(v && v[2] > 0);
+    $('#add').disabled = $('#buy').disabled = !!p.so || (v !== null && !ok);
+    $('#stk').textContent = p.so ? '已售完' : v ? (v[2] > 0 ? '' : '此規格已售完') : '';
+    if (v) { qty = Math.min(qty, maxQty(v)); $('#qn').value = qty; }
+  }
+  const o1 = $('#o1'), o2 = $('#o2');
+  if (o1) o1.onclick = e => { const b = e.target.closest('.opt'); if (!b || b.disabled) return; sel1 = sel1 === b.dataset.o ? null : b.dataset.o; if (sel1) showOptImg(sel1); refresh(); };
+  if (o2) o2.onclick = e => { const b = e.target.closest('.opt'); if (!b || b.disabled) return; sel2 = sel2 === b.dataset.o ? null : b.dataset.o; refresh(); };
+  if (!single && t1.length === 1 && stockOf(t1[0], null)) sel1 = t1[0];
+  if (two && t2.length === 1) sel2 = t2[0];
+  const setQ = n => { const v = cur(); qty = Math.max(1, Math.min(v ? maxQty(v) : 99, n | 0 || 1)); $('#qn').value = qty; };
+  $('#qm').onclick = () => setQ(qty - 1); $('#qp').onclick = () => setQ(qty + 1); $('#qn').onchange = e => setQ(+e.target.value);
+  function go(buy) {
+    const v = cur();
+    if (!v) { toast('請先選擇' + (p.t || '規格')); (o1 || o2).scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+    if (v[2] <= 0) return toast('此規格已售完');
+    addCart(p.i, v[3], qty);
+    if (buy) location.hash = '#/cart'; else toast('已加入購物車');
+  }
+  $('#add').onclick = () => go(false); $('#buy').onclick = () => go(true);
+  refresh();
+
+  loadDesc().then(() => {
+    const d = DESC[p.i]; const el = $('#dbody'); if (!el) return;
+    if (!d || (!d[0] && !d[1].length)) { el.textContent = '詳細規格與適用車種歡迎 LINE 詢問。'; return; }
+    el.className = '';
+    el.innerHTML = (d[0] ? `<pre>${esc(d[0])}</pre>` : '') + d[1].map(id => `<img loading="lazy" src="${img(id)}" alt="">`).join('');
+  });
+}
+
+/* ---------- cart view ---------- */
+function viewCart() {
+  markCat(); document.title = '購物車｜韋德機車精品';
+  if (!cart.length) {
+    $('#app').innerHTML = `<div class="bar"><h1>購物車</h1></div><div class="box empty">購物車是空的<br><br><a class="btn solid" style="display:inline-grid;place-items:center;padding:0 24px;text-decoration:none" href="#/">去逛逛</a></div>`;
+    return;
+  }
+  const L = cartLines(); const sub = L.reduce((a, l) => a + l.sub, 0);
+  $('#app').innerHTML = `<div class="bar"><h1>購物車<small>${L.length} 項</small></h1></div>
+  <div class="lay"><div class="box">${L.map((l, k) => `<div class="ci">
+      <a href="#/p/${l.p.i}"><img src="${img((l.p.oi && l.p.oi[(l.v[0] || '').split(',')[0].trim()]) || l.p.im[0], 1)}" alt=""></a>
+      <div><a class="nm" href="#/p/${l.p.i}">${esc(l.p.n)}</a>${l.v[0] ? `<div class="vn">${esc(l.v[0])}</div>` : ''}
+        <div class="bt"><div class="qty"><button data-k="${k}" data-d="-1">−</button><input data-k="${k}" type="number" inputmode="numeric" value="${l.c.q}"><button data-k="${k}" data-d="1">＋</button></div>
+        <span class="price">${money(l.sub)}</span></div>
+        <button class="del" data-del="${k}">刪除</button></div></div>`).join('')}</div>
+    <div class="box"><div class="sum"><span>商品小計</span><span>${money(sub)}</span></div>
+      <div class="hint">運費於下一步選擇取貨方式後計算</div>
+      <button class="btn solid block" style="margin-top:14px" onclick="location.hash='#/checkout'">前往結帳</button>
+      <a href="#/" style="display:block;text-align:center;margin-top:12px;font-size:13px;color:var(--ink2)">繼續購物</a></div></div>`;
+  const app = $('#app');
+  app.onclick = e => {
+    const b = e.target.closest('button[data-d]'), d = e.target.closest('[data-del]');
+    if (b) { const c = cart[+b.dataset.k]; const v = findVar(BYID[c.i], c.v); c.q = Math.max(1, Math.min(maxQty(v), c.q + +b.dataset.d)); saveCart(); viewCart(); }
+    if (d) { cart.splice(+d.dataset.del, 1); saveCart(); viewCart(); }
+  };
+  app.onchange = e => { const i = e.target.closest('input[data-k]'); if (!i) return; const c = cart[+i.dataset.k]; const v = findVar(BYID[c.i], c.v); c.q = Math.max(1, Math.min(maxQty(v), +i.value | 0 || 1)); saveCart(); viewCart(); };
+}
+
+/* ---------- checkout ---------- */
+function viewCheckout() {
+  markCat(); document.title = '結帳｜韋德機車精品';
+  $('#app').onclick = null; $('#app').onchange = null;
+  const L = cartLines(); const sub = L.reduce((a, l) => a + l.sub, 0);
+  const saved = store.get('wade_buyer', {});
+  const ships = Object.entries(CFG.shipping);
+  let ship = saved.ship && CFG.shipping[saved.ship] ? saved.ship : ships[0][0];
+  let pay = null;
+  const fv = (k) => esc(saved[k] || '');
+
+  $('#app').innerHTML = `<button class="back" onclick="location.hash='#/cart'">‹ 回購物車</button>
+  <form id="fm" novalidate><div class="lay"><div>
+    <div class="box"><h2>取貨方式</h2><div class="radios" id="ships">${ships.map(([k, s]) => `<label class="radio" data-k="${k}"><input type="radio" name="ship" value="${k}"><span class="r">${esc(s.name)}</span><small>${s.fee ? '運費 ' + money(s.fee) + (s.feeFrom ? ' 起' : '') : '免運'}</small></label>`).join('')}</div>
+      <div id="shipExtra"></div></div>
+    <div class="box"><h2>付款方式</h2><div class="radios" id="pays"></div><div class="hint" id="payHint"></div></div>
+    <div class="box"><h2>訂購人資料</h2>
+      <label class="f" data-f="name"><span>姓名 <i>*</i></span><input name="name" autocomplete="name" value="${fv('name')}"><div class="em">請填寫姓名</div></label>
+      <label class="f" data-f="phone"><span>手機 <i>*</i></span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="09xxxxxxxx" value="${fv('phone')}"><div class="em">請填寫正確的手機號碼（09 開頭 10 碼）</div></label>
+      <label class="f"><span>LINE ID（方便我們聯絡確認庫存）</span><input name="lineId" value="${fv('lineId')}"></label>
+      <label class="f"><span>Email</span><input name="email" type="email" inputmode="email" autocomplete="email" value="${fv('email')}"></label>
+      <label class="f"><span>機車車款（選填，幫您確認是否適用）</span><input name="bike" placeholder="例：勁戰六代、DRG" value="${fv('bike')}"></label>
+      <label class="f"><span>備註</span><textarea name="note" rows="2"></textarea></label>
+      <input class="hp" name="website" tabindex="-1" autocomplete="off">
+    </div></div>
+    <div><div class="box"><h2>訂單明細</h2>
+      ${L.map(l => `<div class="sum" style="font-size:13.5px;gap:10px"><span>${esc(l.p.n)}${l.v[0] ? '（' + esc(l.v[0]) + '）' : ''} ×${l.c.q}</span><span style="white-space:nowrap">${money(l.sub)}</span></div>`).join('')}
+      <div class="sum" style="border-top:1px solid var(--line);margin-top:8px;padding-top:8px"><span>商品小計</span><span>${money(sub)}</span></div>
+      <div class="sum"><span>運費</span><span id="fee"></span></div>
+      <div class="sum total"><span>總計</span><span id="tot"></span></div>
+      <div class="hint" id="feeNote" style="color:var(--warn)"></div>
+      <label class="agree"><input type="checkbox" id="agree"><span>我了解網站庫存不一定同步，訂單需店家確認有貨後才成立。</span></label>
+      <button class="btn solid block" style="margin-top:14px" id="submit" type="submit">送出訂單</button>
+      <div class="hint" id="sErr" style="color:var(--accent)"></div>
+    </div></div></div></form>`;
+
+  function renderShip() {
+    document.querySelectorAll('#ships .radio').forEach(r => { const on = r.dataset.k === ship; r.classList.toggle('on', on); r.querySelector('input').checked = on; });
+    const ex = $('#shipExtra');
+    if (ship === 'home') ex.innerHTML = `<label class="f" data-f="address"><span>收件地址 <i>*</i></span><input name="address" autocomplete="street-address" value="${fv('address')}"><div class="em">請填寫收件地址</div></label>`;
+    else if (ship === 'cvs') ex.innerHTML = `<label class="f" data-f="cvsStore"><span>7-11 門市名稱 <i>*</i></span><input name="cvsStore" placeholder="例：新莊頭前門市" value="${fv('cvsStore')}"><div class="em">請填寫門市名稱</div></label>
+      <label class="f" data-f="cvsId"><span>門市店號（6 碼）<i>*</i></span><input name="cvsId" inputmode="numeric" maxlength="6" placeholder="例：123456" value="${fv('cvsId')}"><div class="em">請填寫 6 碼店號</div></label>
+      <div class="hint">不知道店號？<a href="https://emap.pcsc.com.tw/" target="_blank" rel="noopener">開啟 7-11 門市查詢</a></div>`;
+    else ex.innerHTML = `<div class="hint" style="margin-top:10px">門市：${esc(CFG.address)}<br>${CFG.hours.map(esc).join('　')}</div>`;
+    const pays = CFG.shipping[ship].pay;
+    if (!pays.includes(pay)) pay = pays.includes(saved.pay) ? saved.pay : pays[0];
+    $('#pays').innerHTML = pays.map(k => `<label class="radio${k === pay ? ' on' : ''}" data-k="${k}"><input type="radio" name="pay" value="${k}"${k === pay ? ' checked' : ''}><span class="r">${esc(CFG.payNames[k])}</span></label>`).join('');
+    renderPay();
+  }
+  function renderPay() {
+    document.querySelectorAll('#pays .radio').forEach(r => { const on = r.dataset.k === pay; r.classList.toggle('on', on); r.querySelector('input').checked = on; });
+    $('#payHint').textContent = pay === 'transfer' ? `確認有貨後請於 ${CFG.transferDays} 天內轉帳，送出後會顯示匯款帳號。` : pay === 'cod' ? '商品到店後，於 7-11 取貨時付款。' : '到店取貨時付款，可付現。';
+    const fee = shipFee(ship, sub), sf = CFG.shipping[ship]; $('#fee').textContent = fee ? money(fee) + (sf.feeFrom ? ' 起' : '') : '免運'; $('#tot').textContent = money(sub + fee) + (fee && sf.feeFrom ? ' 起' : '');
+    $('#feeNote').textContent = sf.feeNote || '';
+  }
+  $('#ships').onclick = e => { const r = e.target.closest('.radio'); if (r && r.dataset.k !== ship) { ship = r.dataset.k; renderShip(); } };
+  $('#pays').onclick = e => { const r = e.target.closest('.radio'); if (r) { pay = r.dataset.k; renderPay(); } };
+  renderShip();
+  $('#fm').addEventListener('input', e => { const f = e.target.closest('.f.err'); if (f) f.classList.remove('err'); if (e.target.id === 'agree') $('#sErr').textContent = ''; });
+
+  $('#fm').onsubmit = async e => {
+    e.preventDefault();
+    const fd = Object.fromEntries(new FormData(e.target).entries());
+    Object.keys(fd).forEach(k => fd[k] = String(fd[k]).trim());
+    const bad = [];
+    if (!fd.name) bad.push('name');
+    fd.phone = fd.phone.replace(/[\s-]/g, ''); if (!/^09\d{8}$/.test(fd.phone)) bad.push('phone');
+    if (ship === 'home' && !fd.address) bad.push('address');
+    if (ship === 'cvs') { if (!fd.cvsStore) bad.push('cvsStore'); if (!/^\d{6}$/.test(fd.cvsId || '')) bad.push('cvsId'); }
+    document.querySelectorAll('.f[data-f]').forEach(f => f.classList.toggle('err', bad.includes(f.dataset.f)));
+    if (bad.length) { document.querySelector('.f.err').scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+    if (!$('#agree').checked) { $('#sErr').textContent = '請勾選同意上方說明'; return; }
+    if (fd.website) return; // 機器人
+    store.set('wade_buyer', { name: fd.name, phone: fd.phone, lineId: fd.lineId, email: fd.email, bike: fd.bike, address: fd.address, cvsStore: fd.cvsStore, cvsId: fd.cvsId, ship, pay });
+
+    const order = {
+      action: 'shop_order', ship, pay,
+      customer: { name: fd.name, phone: fd.phone, lineId: fd.lineId, email: fd.email, bike: fd.bike, address: fd.address || '', cvsStore: fd.cvsStore || '', cvsId: fd.cvsId || '' },
+      note: fd.note, items: cart.map(c => ({ i: c.i, v: c.v, q: c.q })), clientTotal: sub + shipFee(ship, sub)
+    };
+    const btn = $('#submit'); btn.disabled = true; btn.textContent = '送出中…'; $('#sErr').textContent = '';
+    try {
+      let res;
+      if (!CFG.gasUrl) {
+        await new Promise(r => setTimeout(r, 600));
+        res = { ok: true, demo: true, orderNo: 'TEST' + Date.now().toString().slice(-6), total: order.clientTotal, ship, pay };
+      } else {
+        const r = await fetch(CFG.gasUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(order) });
+        res = await r.json();
+      }
+      if (!res.ok) throw new Error(res.error || '送出失敗');
+      lastOrder = { ...res, ship, pay, name: fd.name, at: Date.now(), lines: cartLines().map(l => [l.p.n, l.v[0], l.c.q, l.sub]) };
+      store.set('wade_last_order', lastOrder);
+      cart = []; saveCart();
+      location.hash = '#/done';
+    } catch (err) {
+      btn.disabled = false; btn.textContent = '送出訂單';
+      $('#sErr').innerHTML = esc(err.message || err) + `<br>若一直失敗，請 <a href="${CFG.line}" target="_blank" rel="noopener">LINE</a> 或來電 ${esc(CFG.phone)}`;
+    }
+  };
+}
+
+/* ---------- done ---------- */
+function viewDone() {
+  markCat(); document.title = '訂單已送出｜韋德機車精品';
+  const o = lastOrder;
+  if (!o) { location.hash = '#/'; return; }
+  const b = CFG.bank;
+  const payBlock = o.pay === 'transfer' ? `<div class="box" style="text-align:left"><h2>匯款資訊</h2>
+      <div class="hint" style="margin:-4px 0 10px;color:var(--warn)">請等我們確認有貨後再匯款（${CFG.transferDays} 天內）</div>
+      <dl class="kv"><dt>銀行</dt><dd>${esc(b.bankName)}（${esc(b.bankCode)}）</dd>
+      <dt>帳號</dt><dd>${esc(b.account)}<button class="copy" data-c="${esc(b.account)}">複製</button></dd>
+      <dt>戶名</dt><dd>${esc(b.holder)}</dd>
+      <dt>金額</dt><dd style="color:var(--accent)">${money(o.total)}${CFG.shipping[o.ship].feeFrom ? '<br><small style="color:var(--warn);font-weight:400">運費可能調整，請以我們確認的金額為準</small>' : ''}</dd></dl>
+      <div class="hint">匯款後請 LINE 告訴我們「訂單編號＋帳號後五碼」。</div></div>`
+    : `<div class="box" style="text-align:left"><h2>付款方式</h2>${esc(CFG.payNames[o.pay])}　${money(o.total)}</div>`;
+  $('#app').innerHTML = `<div class="done"><div class="ck">✓</div><h1 style="font-size:20px;margin:6px 0">訂單已送出</h1>
+    <div class="stock">訂單編號</div><div class="ono">${esc(o.orderNo)}<button class="copy" data-c="${esc(o.orderNo)}">複製</button></div>
+    <p class="stock" style="margin:10px 0 18px">我們會盡快用 LINE 或電話跟您確認庫存與出貨時間</p></div>
+    <div style="max-width:520px;margin:0 auto">
+      ${o.demo ? '<div class="tip" style="margin:0 0 14px">這是測試訂單，沒有真的送出</div>' : ''}
+      ${payBlock}
+      <div class="box" style="text-align:left"><h2>取貨方式</h2>${esc(CFG.shipping[o.ship].name)}
+        ${(o.lines || []).map(l => `<div class="sum" style="font-size:13px;gap:10px"><span>${esc(l[0])}${l[1] ? '（' + esc(l[1]) + '）' : ''} ×${l[2]}</span><span>${money(l[3])}</span></div>`).join('')}</div>
+      <a class="linebtn" href="${CFG.line}" target="_blank" rel="noopener">加 LINE 好友 ${esc(CFG.lineId)}</a>
+      <a href="#/" style="display:block;text-align:center;margin:16px 0;color:var(--ink2)">繼續購物</a></div>`;
+  $('#app').onclick = e => { const c = e.target.closest('.copy'); if (!c) return; navigator.clipboard?.writeText(c.dataset.c).then(() => toast('已複製')); };
+}
+
+/* ---------- footer ---------- */
+function renderFoot() {
+  $('#foot').innerHTML = `<div><h3>購物須知</h3><ul>${CFG.notice.map(n => `<li>${esc(n)}</li>`).join('')}</ul></div>
+  <div><h3>${esc(CFG.shopName)}</h3>${esc(CFG.address)}<br>電話 ${esc(CFG.phone)}　手機 ${esc(CFG.mobile)}<br>${CFG.hours.map(esc).join('<br>')}<br>
+  <a href="${CFG.line}" target="_blank" rel="noopener">LINE ${esc(CFG.lineId)}</a><br><span style="font-size:12px">商品資料更新：${esc(DATA.updated)}</span></div>`;
+}
+})();
+</script>
+</body>
+</html>

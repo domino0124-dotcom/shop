@@ -1,0 +1,61 @@
+{
+  "shopName": "韋德機車精品",
+  "gasUrl": "",
+  "shipping": {
+    "store": {
+      "name": "來店自取",
+      "fee": 0,
+      "pay": [
+        "cash",
+        "transfer"
+      ]
+    },
+    "cvs": {
+      "name": "7-11 店到店",
+      "fee": 60,
+      "pay": [
+        "cod",
+        "transfer"
+      ]
+    },
+    "home": {
+      "name": "宅配",
+      "fee": 160,
+      "feeFrom": true,
+      "feeNote": "宅配運費 NT$160 起，大型或較重商品（輪胎、排氣管等）運費會在確認訂單時另外告知。",
+      "pay": [
+        "transfer"
+      ]
+    }
+  },
+  "payNames": {
+    "cash": "來店付款",
+    "transfer": "銀行轉帳",
+    "cod": "取貨付款"
+  },
+  "freeShippingOver": 0,
+  "bank": {
+    "bankName": "（請填銀行名稱）",
+    "bankCode": "000",
+    "account": "（請填帳號）",
+    "holder": "（請填戶名）"
+  },
+  "transferDays": 3,
+  "line": "https://line.me/R/ti/p/@wademoto",
+  "lineId": "@wademoto",
+  "phone": "02-2998-7231",
+  "mobile": "0975-063-878",
+  "address": "新北市新莊區中正路95號（頭前庄捷運站2號出口，SYM招牌）",
+  "hours": [
+    "週一～週五 13:00–22:00",
+    "週六 14:00–21:00",
+    "週日公休（不出貨）"
+  ],
+  "notice": [
+    "網站庫存與店內現貨不一定同步，下單後我們會用 LINE 或電話跟您確認是否有貨，確認後才算成立。",
+    "標示「需訂購」或客製化的商品，需確認交期，部分需先付訂金。",
+    "商品七日內可退換貨；已組裝、使用過或包裝拆除恕不退換。",
+    "拆封請全程錄影，以確保商品完整，否則無法受理退換貨。",
+    "不確定能否安裝在您的車上，請先用 LINE 詢問。"
+  ]
+}
