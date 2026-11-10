@@ -56,6 +56,14 @@ select.sort{font:inherit;font-size:13px;border:1px solid var(--line);background:
 .pc .nm{font-size:13.5px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.8em}
 .price{color:var(--accent);font-weight:800}
 .pc .price{margin-top:auto;font-size:15px}
+.hs{margin:16px 0 6px}
+.hs h2{font-size:17px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.hs h2:before{content:"";width:4px;height:18px;border-radius:2px;background:var(--accent)}
+.hrow{display:grid;grid-auto-flow:column;grid-auto-columns:42%;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px;scrollbar-width:none}
+.hrow::-webkit-scrollbar{display:none}
+.hrow .pc{scroll-snap-align:start}
+@media(min-width:640px){.hrow{grid-auto-columns:30%}}
+@media(min-width:900px){.hrow{grid-auto-flow:row;grid-template-columns:repeat(5,1fr);grid-auto-columns:auto;overflow:visible}}
 .more{display:block;margin:18px auto;padding:10px 22px;border:1px solid var(--line);background:#fff;border-radius:999px}
 .empty{text-align:center;color:var(--ink2);padding:60px 0}
 
@@ -158,6 +166,10 @@ footer ul{margin:0 0 14px;padding-left:18px}
 .catp .gl button small{color:var(--ink2)}
 .catp .gl button.on{border-color:var(--accent);color:var(--accent);font-weight:700}
 .chip.all{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.chat{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:25;display:flex;align-items:center;gap:6px;background:#06c755;color:#fff;text-decoration:none;font-weight:800;font-size:14px;padding:11px 16px;border-radius:999px;box-shadow:0 6px 18px rgba(6,199,85,.35)}
+.chat svg{flex:none}
+.chat[hidden]{display:none}
+.ask{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;height:42px;border-radius:10px;border:1px solid #06c755;color:#06a648;font-weight:700;text-decoration:none;font-size:14.5px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:rgba(22,24,29,.92);color:#fff;padding:10px 18px;border-radius:999px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:50}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 .loading{padding:80px 0;text-align:center;color:var(--ink2)}
@@ -183,6 +195,7 @@ footer ul{margin:0 0 14px;padding-left:18px}
 <main class="wrap" id="app"><div class="loading">載入商品中…</div></main>
 <footer><div class="wrap fgrid" id="foot"></div></footer>
 <div class="catp" id="catp"><div class="in"><div class="hd2"><input id="cq" type="search" placeholder="搜尋分類，例：KOSO、輪胎"><button id="cx" aria-label="關閉">✕</button></div><div class="gl" id="cgl"></div></div></div>
+<a class="chat" id="chat" target="_blank" rel="noopener" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C6.5 3 2 6.6 2 11c0 3.9 3.5 7.2 8.3 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1 .9.5s5.9-3.5 8-6C21.4 14.3 22 12.7 22 11c0-4.4-4.5-8-10-8z"/></svg>LINE 聊聊</a>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -228,6 +241,7 @@ Promise.all([
   applyExtras(cached);
   if (!CFG.gasUrl) $('#demo').hidden = false;
   $('#logo').innerHTML = (CFG.logo ? `<img src="${esc(CFG.logo)}" alt="${esc(CFG.shopName)}">` : '<b>W</b>') + (CFG.hideName ? '' : `<span>${esc(CFG.shopName)}</span>`);
+  $('#chat').href = lineMsg('你好，我想詢問商品～'); $('#chat').hidden = false;
   if (CFG.logo) { const ic = document.createElement('link'); ic.rel = 'icon'; ic.href = CFG.logo; document.head.appendChild(ic); }
   renderCats(); renderFoot(); badge();
   if (cached && Date.now() - cached.at < 5 * 60 * 1000) extrasDone = true;
@@ -264,6 +278,8 @@ function loadExtras() {
     }).catch(err => { console.warn('extras', err); extrasDone = true; if ($('#waitP')) route(); });
 }
 
+// 打開 LINE 官方帳號聊天室，並帶入文字
+function lineMsg(text) { return 'https://line.me/R/oaMessage/' + encodeURIComponent(CFG.lineId || '@wademoto') + '/?' + encodeURIComponent(text); }
 function loadDesc() { return descP || (descP = fetch('desc.json').then(r => r.json()).then(d => DESC = d).catch(() => DESC = {})); }
 
 /* ---------- cart ---------- */
@@ -291,7 +307,7 @@ window.addEventListener('hashchange', route);
 function route() {
   if (!DATA) return;
   const h = location.hash.replace(/^#\/?/, '').split('/');
-  window.scrollTo(0, 0); $('#app').onclick = $('#app').onchange = null;
+  window.scrollTo(0, 0); $('#app').onclick = $('#app').onchange = null; if (CFG) $('#chat').hidden = false;
   if (h[0] === 'p' && BYID[h[1]]) return viewProduct(BYID[h[1]]);
   if (h[0] === 'p' && !extrasDone) { $('#app').innerHTML = '<div class="loading" id="waitP">載入商品中…</div>'; return; }
   if (h[0] === 'cart') return viewCart();
@@ -359,7 +375,9 @@ function viewList() {
   markCat(); document.title = '韋德機車精品 線上商城';
   const list = filtered(); const cat = DATA.cats.find(c => c.k === state.cat);
   const title = state.q ? `搜尋「${esc(state.q)}」` : (cat ? esc(cat.n) : '全部商品');
-  $('#app').innerHTML = `<div class="bar"><h1>${title}<small>${list.length} 件</small></h1>
+  const home = !state.cat && !state.q ? (CFG.home || []).map(sc => ({ t: sc.t, items: sc.ids.map(i => BYID[i]).filter(Boolean) })).filter(sc => sc.items.length) : [];
+  $('#app').innerHTML = home.map(sc => `<section class="hs"><h2>${esc(sc.t)}</h2><div class="hrow">${sc.items.map(card).join('')}</div></section>`).join('') +
+    `<div class="bar"><h1>${title}<small>${list.length} 件</small></h1>
     <select class="sort" id="sort"><option value="def">最新上架</option><option value="asc">價格低→高</option><option value="desc">價格高→低</option></select></div>
     ${list.length ? `<div class="grid" id="grid">${list.slice(0, state.shown).map(card).join('')}</div>` : `<div class="empty">找不到相關商品<br>換個關鍵字，或 <a href="${CFG.line}" target="_blank" rel="noopener">LINE 詢問我們</a></div>`}
     ${list.length > state.shown ? '<button class="more" id="more">看更多</button>' : ''}`;
@@ -398,6 +416,7 @@ function viewProduct(p) {
       ${two ? `<div class="tier"><h3>選項</h3><div class="opts" id="o2">${t2.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}`}
       <div class="row"><span class="lab">數量</span><div class="qty"><button id="qm">−</button><input id="qn" type="number" inputmode="numeric" value="1" min="1"><button id="qp">＋</button></div><span class="stock" id="stk"></span></div>
       <div class="btns"><button class="btn" id="add">加入購物車</button><button class="btn solid" id="buy">直接購買</button></div>
+      <a class="ask" id="ask" target="_blank" rel="noopener">💬 用 LINE 問這個商品</a>
       <div class="tip">網站庫存與店內現貨不一定同步，下單後我們會跟您確認是否有貨。不確定是否適用您的車，歡迎先 <a href="${CFG.line}" target="_blank" rel="noopener">LINE 詢問</a>。</div>
     </div>
   </div>
@@ -448,6 +467,7 @@ function viewProduct(p) {
     if (buy) location.hash = '#/cart'; else toast('已加入購物車');
   }
   $('#add').onclick = () => go(false); $('#buy').onclick = () => go(true);
+  $('#ask').onclick = () => { const v = cur(); $('#ask').href = lineMsg(`我想問這個商品：\n${p.n}${v && v[0] ? '\n規格：' + v[0] : ''}\n${location.origin + location.pathname}#/p/${p.i}`); };
   refresh();
 
   loadDesc().then(() => {
@@ -489,7 +509,7 @@ function viewCart() {
 
 /* ---------- checkout ---------- */
 function viewCheckout() {
-  markCat(); document.title = '結帳｜韋德機車精品';
+  markCat(); $('#chat').hidden = true; document.title = '結帳｜韋德機車精品';
   $('#app').onclick = null; $('#app').onchange = null;
   const L = cartLines(); const sub = L.reduce((a, l) => a + l.sub, 0);
   const saved = store.get('wade_buyer', {});

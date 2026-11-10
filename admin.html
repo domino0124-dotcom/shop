@@ -70,7 +70,7 @@ label.f>span{display:block;font-size:13px;color:var(--ink2);margin-bottom:4px}
 .err{color:var(--accent);font-size:13px;margin-top:8px}
 .more{display:block;margin:14px auto;padding:8px 20px;border:1px solid var(--line);background:#fff;border-radius:999px}
 .empty{text-align:center;color:var(--ink2);padding:40px 0}
-.nav{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:#e7e7e3;border-radius:10px;padding:4px;margin-bottom:12px}
+.nav{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;background:#e7e7e3;border-radius:10px;padding:4px;margin-bottom:12px}
 .nav button{border:0;background:none;border-radius:8px;height:38px;font-weight:700;color:var(--ink2)}
 .nav button.on{background:#fff;color:var(--ink);box-shadow:var(--shadow)}
 .oc{background:#fff;border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;display:grid;gap:6px}
@@ -95,6 +95,35 @@ label.f>span{display:block;font-size:13px;color:var(--ink2);margin-bottom:4px}
 .pk .ls button{text-align:left;border:1px solid var(--line);background:#fff;border-radius:10px;padding:11px 12px;font-size:15px}
 .pk .ls button.on{border-color:var(--accent);color:var(--accent);font-weight:700}
 .pk .ls button.new{border-style:dashed;color:var(--ok);font-weight:700}
+/* ---------- 大量修改 ---------- */
+.bulk{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--ink);color:#fff;padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;box-shadow:0 -4px 18px rgba(0,0,0,.2)}
+.bulk select,.bulk input{width:auto;padding:7px 8px;font-size:14px;border-radius:7px;border:0}
+.bulk input{width:90px}
+.bulk .btn{height:36px}
+.bulk .grp{display:flex;gap:4px;align-items:center}
+.bulk .btn.gray{background:transparent;color:#ddd;border-color:#555}
+.has-bulk .fab{display:none}.has-bulk main{padding-bottom:180px}
+tr.sel td{background:#fff5f3!important}
+.it.sel{outline:2px solid var(--accent)}
+input.sel{width:18px;height:18px;accent-color:var(--accent);margin:0;cursor:pointer}
+.qe input{width:100%;padding:6px 8px;font-size:14px}
+.qe input.chg{background:#fff7d6;border-color:#e0b100}
+.qe td.pn{max-width:380px;line-height:1.35}
+.qbar{position:sticky;bottom:0;background:rgba(244,244,242,.96);padding:10px 0;display:flex;gap:10px;z-index:5}
+/* ---------- 首頁區塊 ---------- */
+.hsec{background:#fff;border-radius:12px;box-shadow:var(--shadow);padding:12px;display:grid;gap:10px}
+.hsec .top{display:flex;gap:8px;align-items:center}.hsec .top input{flex:1;min-width:0;font-weight:700}
+.hsec .top button{width:34px;height:34px;border:1px solid var(--line);background:#fff;border-radius:7px;padding:0;flex:none}
+.hp{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:8px}
+.hp .c{position:relative;border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:12.5px;line-height:1.35;background:#fafafa}
+.hp .c img{width:100%;aspect-ratio:1;object-fit:cover;background:#eee}
+.hp .c div{padding:5px 6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.hp .c .x{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:12px;padding:0}
+.hp .c .l{position:absolute;top:4px;left:4px;height:22px;border-radius:6px;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:0 6px}
+.hp .c.off{opacity:.45}
+.pk .ls .pi{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:center;font-size:13.5px}
+.pk .ls .pi img{width:44px;height:44px;object-fit:cover;border-radius:6px;background:#eee}
+.pk .ls .pi.added{opacity:.5}
 /* ---------- 電腦版 ---------- */
 .tbar{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
 .tbar input{flex:1 1 100%;min-width:0}.tbar select{flex:1;min-width:0;width:auto}
@@ -119,7 +148,7 @@ html,body{overflow-x:hidden}
 .ecols{display:block}
 @media(min-width:900px){
   main{max-width:1280px;padding:18px 24px 90px}.hd{max-width:1280px;padding:0 24px}
-  .nav{max-width:520px}
+  .nav{max-width:620px}
   .ecols{display:grid;grid-template-columns:1.15fr 1fr;gap:14px;align-items:start}
   .ecols textarea#d{min-height:320px}
   #cl{grid-template-columns:1fr 1fr}
@@ -145,6 +174,7 @@ function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add
 let CFG, PROD, IMG, BASE = {}, ROWS = {}, pw = ls.get('wade_admin_pw', '');
 let view = { tab: 'all', q: '', shown: 30, cat: '', sk: '', sd: 1 };
 let REDRAW = null;
+const SEL = new Set(); let LAST = null;
 const wide = () => matchMedia('(min-width: 900px)').matches;
 let _w = null; addEventListener('resize', () => { clearTimeout(_w); _w = setTimeout(() => { if (REDRAW && wide() !== REDRAW._w) REDRAW(); }, 200); });
 const img = (id, tn) => {
@@ -207,14 +237,16 @@ function viewList() {
   if (view.cat) list = list.filter(x => x.c === view.cat);
   if (view.sk) { const k = view.sk, d = view.sd; list = [...list].sort((a, b) => (k === 'p' ? a.p - b.p : String(a[k] || '').localeCompare(String(b[k] || ''), 'zh-Hant')) * d); }
   const W = wide(); if (W && view.shown < 60) view.shown = 60;
+  if (view.quick) return viewQuick(list, cnt, tabs);
   const sh = (k, n) => `<th data-s="${k}">${n}${view.sk === k ? (view.sd > 0 ? ' ▲' : ' ▼') : ''}</th>`;
   const body = !list.length ? '<div class="empty">沒有商品</div>' : W
-    ? `<table class="tbl"><thead><tr><th></th>${sh('n', '商品名稱')}${sh('c', '分類')}${sh('p', '價格')}<th>狀態</th><th></th></tr></thead><tbody>${list.slice(0, view.shown).map(trow).join('')}</tbody></table>`
+    ? `<table class="tbl"><thead><tr><th><input type="checkbox" class="sel" id="selall" title="全選這一頁"></th><th></th>${sh('n', '商品名稱')}${sh('c', '分類')}${sh('p', '價格')}<th>狀態</th><th></th></tr></thead><tbody>${list.slice(0, view.shown).map(trow).join('')}</tbody></table>`
     : list.slice(0, view.shown).map(row).join('');
   $('#app').innerHTML = nav('p') + `<div class="tbar"><input id="q" type="search" placeholder="搜尋商品名稱" value="${esc(view.q)}">
       <select id="cf"><option value="">全部分類</option>${catList().map(c => `<option${c === view.cat ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select>
+      <button class="btn sm" style="height:44px;white-space:nowrap" id="qk">快速編輯</button>
       <button class="btn sm" style="height:44px;white-space:nowrap" id="sync">從蝦皮同步</button></div>
-    <div class="chips">${tabs.map(([k, n]) => `<button class="chip${view.tab === k ? ' on' : ''}" data-t="${k}">${n} ${cnt[k]}</button>`).join('')}<span class="hint" style="margin:0 0 0 6px;align-self:center;white-space:nowrap">共 ${list.length} 件</span></div>
+    <div class="chips">${tabs.map(([k, n]) => `<button class="chip${view.tab === k ? ' on' : ''}" data-t="${k}">${n} ${cnt[k]}</button>`).join('')}<span class="hint" style="margin:0 0 0 6px;align-self:center;white-space:nowrap">共 ${list.length} 件${W ? '　・勾選或 Ctrl／Shift＋點選可多選' : ''}</span></div>
     <div class="list" id="list">${body}</div>
     ${list.length > view.shown ? '<button class="more" id="more">看更多</button>' : ''}
     <button class="fab" id="new">＋ 新增商品</button>`;
@@ -226,8 +258,22 @@ function viewList() {
   REDRAW = viewList; REDRAW._w = W;
   $('#new').onclick = () => viewEdit(null);
   $('#sync').onclick = () => viewSync();
+  $('#qk').onclick = () => { view.quick = true; SEL.clear(); viewList(); };
+  const vis = list.slice(0, view.shown).map(x => x.i);
+  const pick = (id, shift, force) => {
+    if (shift && LAST && vis.includes(LAST)) { const a = vis.indexOf(LAST), b = vis.indexOf(id); vis.slice(Math.min(a, b), Math.max(a, b) + 1).forEach(i => SEL.add(i)); }
+    else if (force === true || (force == null && !SEL.has(id))) SEL.add(id); else SEL.delete(id);
+    LAST = id; markSel(); bulkBar(list);
+  };
+  const markSel = () => document.querySelectorAll('[data-row]').forEach(r => { const on = SEL.has(r.dataset.row); r.classList.toggle('sel', on); const c = r.querySelector('input.sel'); if (c) c.checked = on; });
+  if ($('#selall')) $('#selall').onchange = e => { vis.forEach(i => e.target.checked ? SEL.add(i) : SEL.delete(i)); markSel(); bulkBar(list); };
+  markSel(); bulkBar(list);
   bindNav();
   $('#list').onclick = async e => {
+    const ck = e.target.closest('input.sel[data-id]');
+    if (ck) { e.stopPropagation(); return pick(ck.dataset.id, e.shiftKey, ck.checked); }
+    const rw = e.target.closest('[data-row]');
+    if (rw && (e.ctrlKey || e.metaKey || e.shiftKey) && !e.target.closest('button')) { e.preventDefault(); return pick(rw.dataset.row, e.shiftKey); }
     const nm = e.target.closest('.nm[data-id]'); if (nm) return viewEdit(list.find(x => x.i === nm.dataset.id));
     const b = e.target.closest('button[data-a]'); if (!b) return;
     const id = b.dataset.id, it = list.find(x => x.i === id);
@@ -239,17 +285,132 @@ function viewList() {
 }
 function row(x) {
   const tag = (x._kind === 'c' ? '<span class="tag c">新增</span>' : x._kind === 'm' ? '<span class="tag m">已修改</span>' : '') + (x._on ? '' : '<span class="tag h">下架</span>');
-  return `<div class="it${x._on ? '' : ' off'}"><img src="${img(x.im && x.im[0], 1)}" loading="lazy" alt="">
-    <div><div class="nm">${tag}${esc(x.n)}</div><div class="pr">${x.p === x.P ? money(x.p) : money(x.p) + '–' + Number(x.P).toLocaleString()}</div></div>
+  return `<div class="it${x._on ? '' : ' off'}" data-row="${esc(x.i)}"><img src="${img(x.im && x.im[0], 1)}" loading="lazy" alt="">
+    <div><div class="nm"><input type="checkbox" class="sel" data-id="${esc(x.i)}" style="vertical-align:-3px;margin-right:6px">${tag}${esc(x.n)}</div><div class="pr">${x.p === x.P ? money(x.p) : money(x.p) + '–' + Number(x.P).toLocaleString()}</div></div>
     <div class="acts"><button class="btn sm" data-a="edit" data-id="${esc(x.i)}">編輯</button><button class="btn sm gray" data-a="tog" data-id="${esc(x.i)}">${x._on ? '下架' : '上架'}</button></div></div>`;
 }
 function trow(x) {
   const tag = (x._kind === 'c' ? '<span class="tag c">新增</span>' : x._kind === 'm' ? '<span class="tag m">已修改</span>' : '');
-  return `<tr class="${x._on ? '' : 'off'}"><td><img src="${img(x.im && x.im[0], 1)}" loading="lazy" alt=""></td>
+  return `<tr class="${x._on ? '' : 'off'}" data-row="${esc(x.i)}"><td><input type="checkbox" class="sel" data-id="${esc(x.i)}"></td><td><img src="${img(x.im && x.im[0], 1)}" loading="lazy" alt=""></td>
     <td><div class="nm" data-id="${esc(x.i)}">${tag}${esc(x.n)}</div></td><td class="sub">${esc(x.c || '')}</td>
     <td class="pr">${x.p === x.P ? money(x.p) : money(x.p) + '–' + Number(x.P).toLocaleString()}</td>
     <td>${x._on ? '<span class="tag c">上架中</span>' : '<span class="tag h">已下架</span>'}</td>
     <td class="ac"><button class="btn sm" data-a="edit" data-id="${esc(x.i)}">編輯</button><button class="btn sm gray" data-a="tog" data-id="${esc(x.i)}">${x._on ? '下架' : '上架'}</button></td></tr>`;
+}
+const cleanItem = x => { const o = {}; Object.keys(x).forEach(k => { if (k[0] !== '_') o[k] = x[k]; }); return JSON.parse(JSON.stringify(o)); };
+async function saveMany(items, btn) {   // items: [{item, on, src}]
+  for (let k = 0; k < items.length; k += 100) {
+    if (btn) btn.textContent = `儲存中 ${Math.min(k + 100, items.length)}/${items.length}…`;
+    await api('save_many', { list: items.slice(k, k + 100) });
+  }
+}
+
+/* ---------- 勾選後的批次工具列 ---------- */
+function bulkBar(list) {
+  let bar = $('#bulk');
+  if (!SEL.size) { if (bar) bar.remove(); document.body.classList.remove('has-bulk'); return; }
+  document.body.classList.add('has-bulk');
+  if (!bar) {
+    bar = document.createElement('div'); bar.className = 'bulk'; bar.id = 'bulk';
+    bar.innerHTML = `<b id="bn"></b>
+      <span class="grp"><select id="bp"><option value="">價格不變</option><option value="set">價格設為</option><option value="add">價格加減（元）</option><option value="pct">價格打折（%）</option></select><input id="bpv" type="number" inputmode="numeric" placeholder="" hidden>
+        <select id="br" hidden><option value="1">取整到 1 元</option><option value="10">取整到 10 元</option></select></span>
+      <span class="grp"><select id="bs"><option value="">庫存不變</option><option value="set">庫存設為</option><option value="ok">改成有貨</option><option value="0">改成售完</option></select><input id="bsv" type="number" inputmode="numeric" hidden></span>
+      <button class="btn sm gray" id="bc" data-c="">分類不變</button>
+      <select id="bo"><option value="">上下架不變</option><option value="on">全部上架</option><option value="off">全部下架</option></select>
+      <button class="btn sm solid" id="bgo">套用</button><button class="btn sm gray" id="bx">取消選取</button>`;
+    document.body.appendChild(bar);
+    $('#bp').onchange = () => { const v = $('#bp').value; $('#bpv').hidden = !v; $('#br').hidden = v !== 'pct'; $('#bpv').placeholder = v === 'pct' ? '例：95' : v === 'add' ? '例：-100' : '金額'; $('#bpv').focus(); };
+    $('#bs').onchange = () => { $('#bsv').hidden = $('#bs').value !== 'set'; };
+    $('#bc').onclick = () => pickCat($('#bc').dataset.c, c => { $('#bc').dataset.c = c; $('#bc').textContent = '分類：' + c; });
+    $('#bx').onclick = () => { SEL.clear(); REDRAW && REDRAW(); bulkBar([]); };
+  }
+  $('#bn').textContent = `已選 ${SEL.size} 件`;
+  $('#bgo').onclick = () => applyBulk();
+}
+async function applyBulk() {
+  const pm = $('#bp').value, pv = Number($('#bpv').value), rd = Number($('#br').value) || 1;
+  const sm = $('#bs').value, sv = Number($('#bsv').value), cat = $('#bc').dataset.c, on = $('#bo').value;
+  if (pm && (!$('#bpv').value || isNaN(pv))) return toast('請輸入價格數字');
+  if (pm === 'pct' && !(pv > 0 && pv <= 200)) return toast('打折請輸入 1～200，例如 95 代表 95 折');
+  if (sm === 'set' && ($('#bsv').value === '' || sv < 0)) return toast('請輸入庫存數字');
+  if (!pm && !sm && !cat && !on) return toast('請先選要改的項目');
+  const all = {}; allItems().forEach(x => all[x.i] = x);
+  const ids = [...SEL].filter(i => all[i]);
+  const desc = [pm && { set: `價格設為 ${pv}`, add: `價格${pv >= 0 ? '加' : '減'} ${Math.abs(pv)} 元`, pct: `價格打 ${pv} 折（×${pv / 100}）` }[pm],
+    sm && { set: `庫存設為 ${sv}`, ok: '庫存改成有貨', 0: '庫存改成售完' }[sm], cat && `分類改成「${cat}」`, on && (on === 'on' ? '全部上架' : '全部下架')].filter(Boolean).join('、');
+  if (!confirm(`要把 ${ids.length} 件商品：\n${desc}\n\n確定嗎？`)) return;
+  const btn = $('#bgo'); btn.disabled = true;
+  try {
+    const onlyToggle = !pm && !sm && !cat;
+    if (onlyToggle) { btn.textContent = '儲存中…'; await api('toggle_many', { list: ids.map(i => ({ id: i, on: on === 'on', name: all[i].n })) }); }
+    else {
+      const items = ids.map(i => {
+        const x = all[i], it = cleanItem(x);
+        it.v = it.v.map(v => { let p = v[1], st = v[2];
+          if (pm === 'set') p = pv; else if (pm === 'add') p = p + pv; else if (pm === 'pct') p = Math.round(p * pv / 100 / rd) * rd;
+          if (sm === 'set') st = sv; else if (sm === 'ok') st = st > 0 ? st : 99; else if (sm === '0') st = 0;
+          return [v[0], Math.max(1, Math.round(p)), st, v[3]]; });
+        if (cat) it.c = cat;
+        return { item: it, on: on ? on === 'on' : x._on, src: BASE[i] ? 'shopee' : 'custom' };
+      });
+      await saveMany(items, btn);
+    }
+    await reloadRowsQuiet(); SEL.clear(); bulkBar([]); toast(`已更新 ${ids.length} 件，網站約 5 分鐘內更新`); viewList();
+  } catch (err) { alert(err.message); btn.disabled = false; btn.textContent = '套用'; }
+}
+
+/* ---------- 快速編輯：表格直接改價格、庫存 ---------- */
+function viewQuick(list, cnt, tabs) {
+  bulkBar([]); REDRAW = null;
+  const CH = {};   // id -> 改過的規格陣列
+  const show = list.slice(0, view.shown);
+  const rows = show.map(x => x.v.map((v, k) => `<tr data-row="${esc(x.i)}">
+      ${k === 0 ? `<td rowspan="${x.v.length}"><img src="${img(x.im && x.im[0], 1)}" loading="lazy" alt=""></td><td rowspan="${x.v.length}" class="pn">${esc(x.n)}<div class="sub">${esc(x.c || '')}${x._on ? '' : '・已下架'}</div></td>` : ''}
+      <td class="sub">${esc(v[0] || '（單一規格）')}</td>
+      <td style="width:120px"><input data-id="${esc(x.i)}" data-k="${k}" data-f="1" type="number" inputmode="numeric" value="${v[1]}"></td>
+      <td style="width:100px"><input data-id="${esc(x.i)}" data-k="${k}" data-f="2" type="number" inputmode="numeric" value="${v[2]}"></td></tr>`).join('')).join('');
+  $('#app').innerHTML = nav('p') + `<div class="tbar"><input id="q" type="search" placeholder="搜尋商品名稱" value="${esc(view.q)}">
+      <select id="cf"><option value="">全部分類</option>${catList().map(c => `<option${c === view.cat ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
+    <div class="box" style="padding:12px 14px"><b>快速編輯</b>　<span class="hint" style="margin:0">直接改價格和庫存，改過的格子會變黃色。按 Enter 跳到下一列。庫存 0＝售完。</span></div>
+    ${show.length ? `<table class="tbl qe"><thead><tr><th></th><th>商品</th><th>規格</th><th>價格</th><th>庫存</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="empty">沒有商品</div>'}
+    ${list.length > view.shown ? `<button class="more" id="more">再載入 ${Math.min(60, list.length - view.shown)} 件（共 ${list.length} 件）</button>` : ''}
+    <div class="qbar"><button class="btn gray" id="qx" style="flex:1">結束快速編輯</button><button class="btn solid" id="qs" style="flex:2" disabled>儲存變更</button></div>`;
+  bindNav();
+  const byId = {}; show.forEach(x => byId[x.i] = x);
+  const dirty = () => { const n = Object.keys(CH).length; $('#qs').disabled = !n; $('#qs').textContent = n ? `儲存變更（${n} 件商品）` : '儲存變更'; };
+  const leave = fn => { if (Object.keys(CH).length && !confirm('還有沒儲存的修改，確定離開？')) return; fn(); };
+  let qt; $('#q').oninput = e => { clearTimeout(qt); qt = setTimeout(() => leave(() => { view.q = e.target.value.trim(); view.shown = 60; viewList(); $('#q').focus(); }), 400); };
+  $('#cf').onchange = e => leave(() => { view.cat = e.target.value; view.shown = 60; viewList(); });
+  if ($('#more')) $('#more').onclick = () => leave(() => { view.shown += 60; viewList(); });
+  $('#qx').onclick = () => leave(() => { view.quick = false; viewList(); });
+  const tb = document.querySelector('.qe tbody');
+  if (tb) {
+    tb.oninput = e => {
+      const i = e.target.closest('input[data-id]'); if (!i) return;
+      const x = byId[i.dataset.id], k = +i.dataset.k, f = +i.dataset.f;
+      const v = CH[x.i] || x.v.map(r => [...r]);
+      v[k][f] = i.value === '' ? '' : Number(i.value);
+      const same = JSON.stringify(v) === JSON.stringify(x.v);
+      if (same) delete CH[x.i]; else CH[x.i] = v;
+      i.classList.toggle('chg', Number(i.value) !== x.v[k][f] || i.value === '');
+      dirty();
+    };
+    tb.onkeydown = e => {
+      if (e.key !== 'Enter') return; e.preventDefault();
+      const ins = [...tb.querySelectorAll(`input[data-f="${e.target.dataset.f}"]`)], n = ins.indexOf(e.target);
+      if (ins[n + 1]) { ins[n + 1].focus(); ins[n + 1].select(); }
+    };
+  }
+  $('#qs').onclick = async () => {
+    const ids = Object.keys(CH);
+    for (const i of ids) if (CH[i].some(v => !(Number(v[1]) > 0))) return toast('「' + byId[i].n.slice(0, 20) + '」價格要大於 0');
+    const b = $('#qs'); b.disabled = true;
+    try {
+      await saveMany(ids.map(i => { const it = cleanItem(byId[i]); it.v = CH[i].map(v => [v[0], Number(v[1]), v[2] === '' ? '' : Number(v[2]), v[3]]); return { item: it, on: byId[i]._on, src: BASE[i] ? 'shopee' : 'custom' }; }), b);
+      await reloadRowsQuiet(); toast(`已儲存 ${ids.length} 件，網站約 5 分鐘內更新`); viewList();
+    } catch (err) { alert(err.message); b.disabled = false; dirty(); }
+  };
 }
 async function reloadRowsQuiet() { const j = await api('list'); ROWS = {}; j.rows.forEach(r => ROWS[r.id] = r); }
 
@@ -265,7 +426,7 @@ async function viewEdit(x) {
   }
   const on = x ? x._on !== false : true;
   window.scrollTo(0, 0);
-  REDRAW = null;
+  REDRAW = null; bulkBar([]);
   $('#app').innerHTML = `<button class="btn sm gray" id="back">‹ 返回清單</button>
   <div class="ecols" style="margin-top:12px"><div>
   <div class="box"><h2>${isNew ? '新增商品' : isShopee ? '修改蝦皮商品' : '編輯商品'}</h2>
@@ -355,8 +516,70 @@ async function viewEdit(x) {
   };
 }
 
-function nav(on) { return `<div class="nav">${[['p', '商品'], ['o', '訂單'], ['c', '分類'], ['s', '設定']].map(([k, n]) => `<button data-n="${k}" class="${on === k ? 'on' : ''}">${n}</button>`).join('')}</div>`; }
-function bindNav() { document.querySelectorAll('.nav button').forEach(b => b.onclick = () => b.dataset.n === 'o' ? viewOrders() : b.dataset.n === 'c' ? viewCats() : b.dataset.n === 's' ? viewSettings() : viewList()); }
+function nav(on) { return `<div class="nav">${[['p', '商品'], ['o', '訂單'], ['h', '首頁'], ['c', '分類'], ['s', '設定']].map(([k, n]) => `<button data-n="${k}" class="${on === k ? 'on' : ''}">${n}</button>`).join('')}</div>`; }
+function bindNav() { document.querySelectorAll('.nav button').forEach(b => b.onclick = () => (SEL.clear(), bulkBar([]), view.quick = false, 0) || b.dataset.n === 'o' ? viewOrders() : b.dataset.n === 'c' ? viewCats() : b.dataset.n === 's' ? viewSettings() : b.dataset.n === 'h' ? viewHome() : viewList()); }
+
+/* ---------- 首頁：精選區塊、套餐 ---------- */
+function viewHome() {
+  window.scrollTo(0, 0); REDRAW = null;
+  const secs = JSON.parse(JSON.stringify(CFG.home || []));
+  const all = {}; allItems().forEach(x => all[x.i] = x);
+  let dirty = false;
+  const draw = () => {
+    $('#hl').innerHTML = secs.map((sc, k) => `<div class="hsec">
+      <div class="top"><input data-k="${k}" value="${esc(sc.t)}" placeholder="區塊標題，例：本週精選"><button data-up="${k}">↑</button><button data-dn="${k}">↓</button><button data-rm="${k}">✕</button></div>
+      <div class="hp">${sc.ids.map((id, j) => { const x = all[id]; return `<div class="c${x && x._on ? '' : ' off'}"><img src="${x ? img(x.im && x.im[0], 1) : ''}" alt=""><div>${x ? esc(x.n) : '（商品已刪除）'}</div>
+        <button class="x" data-k="${k}" data-x="${j}">✕</button>${j ? `<button class="l" data-k="${k}" data-l="${j}">←</button>` : ''}</div>`; }).join('')}</div>
+      <button class="btn sm" data-add="${k}">＋ 加商品（${sc.ids.length}）</button></div>`).join('') ||
+      '<div class="empty">還沒有首頁區塊，按上方「＋ 新增區塊」開始</div>';
+    $('#hs').disabled = !dirty;
+  };
+  $('#app').innerHTML = nav('h') + `<div class="row" style="margin-bottom:10px;flex-wrap:wrap">
+      <button class="btn sm" style="height:40px" id="ha">＋ 新增區塊</button>
+      <button class="btn sm gray" style="height:40px" id="ha2">＋ 套餐區塊</button></div>
+    <div class="hint" style="margin:0 0 10px">這些區塊會顯示在商城首頁最上面。<b>套餐</b>：先在「商品」用「＋ 新增商品」建立套餐（價格填套餐價、內容寫在說明），再加進套餐區塊。</div>
+    <div class="list" id="hl"></div>
+    <div class="bar"><button class="btn solid" id="hs" disabled>儲存首頁</button></div><div class="err" id="he"></div>`;
+  bindNav(); draw();
+  const ch = () => { dirty = true; $('#hs').disabled = false; };
+  $('#ha').onclick = () => { secs.push({ t: '本週精選', ids: [] }); ch(); draw(); $('#hl').lastElementChild.scrollIntoView({ block: 'center' }); };
+  $('#ha2').onclick = () => { secs.push({ t: '超值套餐', ids: [] }); ch(); draw(); $('#hl').lastElementChild.scrollIntoView({ block: 'center' }); };
+  $('#hl').oninput = e => { const t = e.target.closest('input[data-k]'); if (t) { secs[+t.dataset.k].t = t.value; ch(); } };
+  $('#hl').onclick = e => {
+    const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
+    if (d.up != null && +d.up > 0) { const k = +d.up; [secs[k - 1], secs[k]] = [secs[k], secs[k - 1]]; }
+    else if (d.dn != null && +d.dn < secs.length - 1) { const k = +d.dn; [secs[k + 1], secs[k]] = [secs[k], secs[k + 1]]; }
+    else if (d.rm != null) { if (!confirm(`刪除區塊「${secs[+d.rm].t}」？`)) return; secs.splice(+d.rm, 1); }
+    else if (d.x != null) secs[+d.k].ids.splice(+d.x, 1);
+    else if (d.l != null) { const a = secs[+d.k].ids, j = +d.l; [a[j - 1], a[j]] = [a[j], a[j - 1]]; }
+    else if (d.add != null) { const sc = secs[+d.add]; return pickProducts(sc.ids, () => { ch(); draw(); }); }
+    else return;
+    ch(); draw();
+  };
+  $('#hs').onclick = async () => {
+    if (secs.some(sc => !sc.t.trim())) return $('#he').textContent = '每個區塊都要有標題';
+    const b = $('#hs'); b.disabled = true; b.textContent = '儲存中…';
+    try { await saveConfig({ ...CFG, home: secs.map(sc => ({ t: sc.t.trim(), ids: sc.ids })) }, false); dirty = false; toast('已儲存，商城約 1～2 分鐘後更新'); b.textContent = '儲存首頁'; }
+    catch (err) { $('#he').textContent = err.message; b.disabled = false; b.textContent = '儲存首頁'; }
+  };
+}
+// 搜尋商品加進區塊（可連續點多個）
+function pickProducts(ids, done) {
+  const wrap = document.createElement('div'); wrap.className = 'pk';
+  wrap.innerHTML = `<div class="in"><div class="h"><input id="pq" type="search" placeholder="搜尋商品名稱，點一下就加入"><button id="px">完成</button></div><div class="ls" id="pl"></div></div>`;
+  document.body.appendChild(wrap);
+  const items = allItems().filter(x => x._on);
+  const draw = () => {
+    const q = $('#pq').value.trim().toLowerCase(), ks = q.split(/\s+/).filter(Boolean);
+    const list = (ks.length ? items.filter(x => ks.every(k => x.n.toLowerCase().includes(k))) : items.filter(x => x._kind === 'c').concat(items)).slice(0, 40);
+    $('#pl').innerHTML = list.map(x => `<button class="pi${ids.includes(x.i) ? ' added' : ''}" data-id="${esc(x.i)}"><img src="${img(x.im && x.im[0], 1)}" alt=""><span>${esc(x.n)}</span><b>${ids.includes(x.i) ? '✓' : '＋'}</b></button>`).join('') || '<div class="hint">找不到商品</div>';
+  };
+  const close = () => { wrap.remove(); done(); };
+  draw(); $('#pq').oninput = draw; $('#px').onclick = close;
+  wrap.onclick = e => { if (e.target === wrap) close(); };
+  $('#pl').onclick = e => { const b = e.target.closest('button[data-id]'); if (!b) return; const id = b.dataset.id, k = ids.indexOf(id); if (k < 0) ids.push(id); else ids.splice(k, 1); draw(); };
+  setTimeout(() => $('#pq').focus(), 50);
+}
 
 /* ---------- 左上角 Logo、回首頁 ---------- */
 function applyBrand() {
@@ -364,7 +587,7 @@ function applyBrand() {
   let ic = document.querySelector('link[rel=icon]');
   if (CFG.logo) { if (!ic) { ic = document.createElement('link'); ic.rel = 'icon'; document.head.appendChild(ic); } ic.href = CFG.logo; }
 }
-$('#home').onclick = e => { e.preventDefault(); if (!pw || !PROD) return; view.tab = 'all'; view.q = ''; view.cat = ''; view.shown = 30; viewList(); window.scrollTo(0, 0); };
+$('#home').onclick = e => { e.preventDefault(); if (!pw || !PROD) return; SEL.clear(); bulkBar([]); view.quick = false; view.tab = 'all'; view.q = ''; view.cat = ''; view.shown = 30; viewList(); window.scrollTo(0, 0); };
 
 /* ---------- 設定：Logo、店名 ---------- */
 function viewSettings() {
