@@ -138,7 +138,9 @@ html,body{overflow-x:hidden}
 .tbl tr:hover td{background:#fafaf8}
 .tbl tr.off td{opacity:.55}
 .tbl td img{width:52px;height:52px;object-fit:cover;border-radius:6px;background:#eee;display:block}
-.tbl .nm{cursor:pointer;line-height:1.4}.tbl .nm:hover{color:var(--accent)}
+.tbl .nm{cursor:pointer;line-height:1.4}
+a.nm{color:inherit;text-decoration:none;display:block}
+a.btn{display:inline-grid;place-items:center;text-decoration:none}.tbl .nm:hover{color:var(--accent)}
 .tbl .pr{color:var(--accent);font-weight:700;white-space:nowrap}
 .tbl .ac{white-space:nowrap;text-align:right}.tbl .ac .btn{margin-left:4px}
 .tbl .sub{font-size:12.5px;color:var(--ink2)}
@@ -211,7 +213,12 @@ function viewLogin(msg) {
 
 async function loadRows() {
   $('#app').innerHTML = '<div class="empty">讀取商品資料…</div>';
-  try { const j = await api('list'); ROWS = {}; j.rows.forEach(r => ROWS[r.id] = r); viewList(); }
+  try {
+    const j = await api('list'); ROWS = {}; j.rows.forEach(r => ROWS[r.id] = r);
+    const m = location.hash.match(/^#edit\/(.+)$/);
+    const it = m && allItems().find(x => x.i === decodeURIComponent(m[1]));
+    it ? viewEdit(it) : viewList();
+  }
   catch (e) { pw ? $('#app').innerHTML = `<div class="empty">${esc(e.message)}<br><br><button class="btn" onclick="location.reload()">重試</button></div>` : viewLogin(e.message); }
 }
 
@@ -228,6 +235,8 @@ function allItems() {
   return out;
 }
 function viewList() {
+  document.title = '商城後台｜韋德機車精品';
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
   const tabs = [['all', '全部'], ['c', '我新增的'], ['m', '已修改'], ['off', '已下架']];
   let list = allItems();
   const cnt = { all: list.length, c: list.filter(x => x._kind === 'c').length, m: list.filter(x => x._kind === 'm').length, off: list.filter(x => !x._on).length };
@@ -246,7 +255,7 @@ function viewList() {
       <select id="cf"><option value="">全部分類</option>${catList().map(c => `<option${c === view.cat ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select>
       <button class="btn sm" style="height:44px;white-space:nowrap" id="qk">快速編輯</button>
       <button class="btn sm" style="height:44px;white-space:nowrap" id="sync">從蝦皮同步</button></div>
-    <div class="chips">${tabs.map(([k, n]) => `<button class="chip${view.tab === k ? ' on' : ''}" data-t="${k}">${n} ${cnt[k]}</button>`).join('')}<span class="hint" style="margin:0 0 0 6px;align-self:center;white-space:nowrap">共 ${list.length} 件${W ? '　・勾選或 Ctrl／Shift＋點選可多選' : ''}</span></div>
+    <div class="chips">${tabs.map(([k, n]) => `<button class="chip${view.tab === k ? ' on' : ''}" data-t="${k}">${n} ${cnt[k]}</button>`).join('')}<span class="hint" style="margin:0 0 0 6px;align-self:center;white-space:nowrap">共 ${list.length} 件${W ? '　・Ctrl＋點「編輯」＝新分頁編輯　・勾選或在空白處 Ctrl／Shift＋點選＝多選' : ''}</span></div>
     <div class="list" id="list">${body}</div>
     ${list.length > view.shown ? '<button class="more" id="more">看更多</button>' : ''}
     <button class="fab" id="new">＋ 新增商品</button>`;
@@ -270,11 +279,12 @@ function viewList() {
   markSel(); bulkBar(list);
   bindNav();
   $('#list').onclick = async e => {
+    const ed = e.target.closest('a.ed');
+    if (ed) { if (e.ctrlKey || e.metaKey || e.shiftKey) return; e.preventDefault(); return viewEdit(list.find(x => x.i === ed.dataset.id)); }
     const ck = e.target.closest('input.sel[data-id]');
     if (ck) { e.stopPropagation(); return pick(ck.dataset.id, e.shiftKey, ck.checked); }
     const rw = e.target.closest('[data-row]');
     if (rw && (e.ctrlKey || e.metaKey || e.shiftKey) && !e.target.closest('button')) { e.preventDefault(); return pick(rw.dataset.row, e.shiftKey); }
-    const nm = e.target.closest('.nm[data-id]'); if (nm) return viewEdit(list.find(x => x.i === nm.dataset.id));
     const b = e.target.closest('button[data-a]'); if (!b) return;
     const id = b.dataset.id, it = list.find(x => x.i === id);
     if (b.dataset.a === 'edit') return viewEdit(it);
@@ -287,15 +297,15 @@ function row(x) {
   const tag = (x._kind === 'c' ? '<span class="tag c">新增</span>' : x._kind === 'm' ? '<span class="tag m">已修改</span>' : '') + (x._on ? '' : '<span class="tag h">下架</span>');
   return `<div class="it${x._on ? '' : ' off'}" data-row="${esc(x.i)}"><img src="${img(x.im && x.im[0], 1)}" loading="lazy" alt="">
     <div><div class="nm"><input type="checkbox" class="sel" data-id="${esc(x.i)}" style="vertical-align:-3px;margin-right:6px">${tag}${esc(x.n)}</div><div class="pr">${x.p === x.P ? money(x.p) : money(x.p) + '–' + Number(x.P).toLocaleString()}</div></div>
-    <div class="acts"><button class="btn sm" data-a="edit" data-id="${esc(x.i)}">編輯</button><button class="btn sm gray" data-a="tog" data-id="${esc(x.i)}">${x._on ? '下架' : '上架'}</button></div></div>`;
+    <div class="acts"><a class="btn sm ed" href="#edit/${encodeURIComponent(x.i)}" data-id="${esc(x.i)}">編輯</a><button class="btn sm gray" data-a="tog" data-id="${esc(x.i)}">${x._on ? '下架' : '上架'}</button></div></div>`;
 }
 function trow(x) {
   const tag = (x._kind === 'c' ? '<span class="tag c">新增</span>' : x._kind === 'm' ? '<span class="tag m">已修改</span>' : '');
   return `<tr class="${x._on ? '' : 'off'}" data-row="${esc(x.i)}"><td><input type="checkbox" class="sel" data-id="${esc(x.i)}"></td><td><img src="${img(x.im && x.im[0], 1)}" loading="lazy" alt=""></td>
-    <td><div class="nm" data-id="${esc(x.i)}">${tag}${esc(x.n)}</div></td><td class="sub">${esc(x.c || '')}</td>
+    <td><a class="nm ed" href="#edit/${encodeURIComponent(x.i)}" data-id="${esc(x.i)}" title="Ctrl＋點擊可在新分頁編輯">${tag}${esc(x.n)}</a></td><td class="sub">${esc(x.c || '')}</td>
     <td class="pr">${x.p === x.P ? money(x.p) : money(x.p) + '–' + Number(x.P).toLocaleString()}</td>
     <td>${x._on ? '<span class="tag c">上架中</span>' : '<span class="tag h">已下架</span>'}</td>
-    <td class="ac"><button class="btn sm" data-a="edit" data-id="${esc(x.i)}">編輯</button><button class="btn sm gray" data-a="tog" data-id="${esc(x.i)}">${x._on ? '下架' : '上架'}</button></td></tr>`;
+    <td class="ac"><a class="btn sm ed" href="#edit/${encodeURIComponent(x.i)}" data-id="${esc(x.i)}" title="Ctrl＋點擊可在新分頁編輯">編輯</a><button class="btn sm gray" data-a="tog" data-id="${esc(x.i)}">${x._on ? '下架' : '上架'}</button></td></tr>`;
 }
 const cleanItem = x => { const o = {}; Object.keys(x).forEach(k => { if (k[0] !== '_') o[k] = x[k]; }); return JSON.parse(JSON.stringify(o)); };
 async function saveMany(items, btn) {   // items: [{item, on, src}]
@@ -426,6 +436,7 @@ async function viewEdit(x) {
   }
   const on = x ? x._on !== false : true;
   window.scrollTo(0, 0);
+  document.title = (isNew ? '新增商品' : '編輯：' + it.n.slice(0, 20)) + '｜商城後台';
   REDRAW = null; bulkBar([]);
   $('#app').innerHTML = `<button class="btn sm gray" id="back">‹ 返回清單</button>
   <div class="ecols" style="margin-top:12px"><div>
