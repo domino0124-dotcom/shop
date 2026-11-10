@@ -15,7 +15,11 @@ img{display:block;max-width:100%}
 header{position:sticky;top:0;z-index:10;background:var(--ink);color:#fff}
 .hd{max-width:820px;margin:0 auto;display:flex;align-items:center;gap:10px;height:54px;padding:0 16px}
 .hd b{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:7px;background:var(--accent)}
-.hd h1{font-size:16px;margin:0;flex:1}
+.hd h1{font-size:16px;margin:0}
+.home{display:flex;align-items:center;gap:10px;flex:1;color:#fff!important;text-decoration:none;font-size:inherit!important;min-width:0}
+.home img{height:30px;max-width:140px;object-fit:contain;display:block}
+.lgprev{display:flex;align-items:center;gap:14px;background:var(--ink);border-radius:10px;padding:14px;color:#fff;font-weight:800}
+.lgprev img{height:36px;max-width:180px;object-fit:contain}
 .hd a{color:#cfd2d8;font-size:13px}
 main{max-width:820px;margin:0 auto;padding:14px 16px 90px}
 .box{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
@@ -66,7 +70,7 @@ label.f>span{display:block;font-size:13px;color:var(--ink2);margin-bottom:4px}
 .err{color:var(--accent);font-size:13px;margin-top:8px}
 .more{display:block;margin:14px auto;padding:8px 20px;border:1px solid var(--line);background:#fff;border-radius:999px}
 .empty{text-align:center;color:var(--ink2);padding:40px 0}
-.nav{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;background:#e7e7e3;border-radius:10px;padding:4px;margin-bottom:12px}
+.nav{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:#e7e7e3;border-radius:10px;padding:4px;margin-bottom:12px}
 .nav button{border:0;background:none;border-radius:8px;height:38px;font-weight:700;color:var(--ink2)}
 .nav button.on{background:#fff;color:var(--ink);box-shadow:var(--shadow)}
 .oc{background:#fff;border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;display:grid;gap:6px}
@@ -115,7 +119,7 @@ html,body{overflow-x:hidden}
 .ecols{display:block}
 @media(min-width:900px){
   main{max-width:1280px;padding:18px 24px 90px}.hd{max-width:1280px;padding:0 24px}
-  .nav{max-width:420px}
+  .nav{max-width:520px}
   .ecols{display:grid;grid-template-columns:1.15fr 1fr;gap:14px;align-items:start}
   .ecols textarea#d{min-height:320px}
   #cl{grid-template-columns:1fr 1fr}
@@ -123,7 +127,7 @@ html,body{overflow-x:hidden}
 </style>
 </head>
 <body>
-<header><div class="hd"><b>W</b><h1>商城後台</h1><a href="./" target="_blank">看商城 ↗</a></div></header>
+<header><div class="hd"><a class="home" href="#" id="home" title="回後台首頁"><span id="brand"><b>W</b></span><h1>商城後台</h1></a><a href="./" target="_blank">看商城 ↗</a></div></header>
 <main id="app"><div class="empty">載入中…</div></main>
 <div class="toast" id="toast"></div>
 <input type="file" id="file" accept="image/*" multiple hidden>
@@ -159,7 +163,7 @@ async function api(op, extra) {
 
 /* ---------- 啟動 ---------- */
 Promise.all([fetch('config.json', { cache: 'no-cache' }).then(r => r.json()), fetch('products.json', { cache: 'no-cache' }).then(r => r.json())])
-  .then(([c, p]) => { CFG = c; PROD = p; IMG = p.img; p.items.forEach((x, k) => { x._k = k; BASE[x.i] = x; }); pw ? loadRows() : viewLogin(); })
+  .then(([c, p]) => { CFG = c; applyBrand(); PROD = p; IMG = p.img; p.items.forEach((x, k) => { x._k = k; BASE[x.i] = x; }); pw ? loadRows() : viewLogin(); })
   .catch(e => { $('#app').innerHTML = '<div class="empty">載入失敗：' + esc(e.message) + '</div>'; });
 
 function viewLogin(msg) {
@@ -351,8 +355,51 @@ async function viewEdit(x) {
   };
 }
 
-function nav(on) { return `<div class="nav">${[['p', '商品'], ['o', '訂單'], ['c', '分類']].map(([k, n]) => `<button data-n="${k}" class="${on === k ? 'on' : ''}">${n}</button>`).join('')}</div>`; }
-function bindNav() { document.querySelectorAll('.nav button').forEach(b => b.onclick = () => b.dataset.n === 'o' ? viewOrders() : b.dataset.n === 'c' ? viewCats() : viewList()); }
+function nav(on) { return `<div class="nav">${[['p', '商品'], ['o', '訂單'], ['c', '分類'], ['s', '設定']].map(([k, n]) => `<button data-n="${k}" class="${on === k ? 'on' : ''}">${n}</button>`).join('')}</div>`; }
+function bindNav() { document.querySelectorAll('.nav button').forEach(b => b.onclick = () => b.dataset.n === 'o' ? viewOrders() : b.dataset.n === 'c' ? viewCats() : b.dataset.n === 's' ? viewSettings() : viewList()); }
+
+/* ---------- 左上角 Logo、回首頁 ---------- */
+function applyBrand() {
+  $('#brand').innerHTML = CFG.logo ? `<img src="${esc(CFG.logo)}" alt="">` : '<b>W</b>';
+  let ic = document.querySelector('link[rel=icon]');
+  if (CFG.logo) { if (!ic) { ic = document.createElement('link'); ic.rel = 'icon'; document.head.appendChild(ic); } ic.href = CFG.logo; }
+}
+$('#home').onclick = e => { e.preventDefault(); if (!pw || !PROD) return; view.tab = 'all'; view.q = ''; view.cat = ''; view.shown = 30; viewList(); window.scrollTo(0, 0); };
+
+/* ---------- 設定：Logo、店名 ---------- */
+function viewSettings() {
+  window.scrollTo(0, 0); REDRAW = null;
+  let logo = CFG.logo || '';
+  $('#app').innerHTML = nav('s') + `<div class="box"><h2>商城 Logo 與店名</h2>
+    <div class="lgprev" id="lp"></div>
+    <div class="hint">這是商城和後台左上角的樣子。建議用<b>去背的 PNG</b>，橫的或方的都可以。</div>
+    <div class="row" style="margin-top:12px;flex-wrap:wrap">
+      <label class="btn sm" style="height:40px;display:inline-grid;place-items:center;cursor:pointer">上傳 Logo<input type="file" id="lf" accept="image/*" hidden></label>
+      <button class="btn sm gray" style="height:40px" id="lr">改回 W</button></div>
+    <label class="f"><span>店名（顯示在 Logo 旁邊）</span><input id="sn" value="${esc(CFG.shopName || '')}"></label>
+    <label class="f sw" style="margin-top:12px"><input type="checkbox" id="st"${CFG.hideName ? '' : ' checked'}> 在 Logo 旁顯示店名（Logo 本身已經有字的話可以取消）</label>
+    <div class="err" id="se"></div>
+    <button class="btn solid" style="width:100%;margin-top:14px" id="ss">儲存</button></div>`;
+  bindNav();
+  const prev = () => { $('#lp').innerHTML = (logo ? `<img src="${esc(logo)}" alt="">` : '<b style="display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;background:var(--accent)">W</b>') + ($('#st') && !$('#st').checked ? '' : `<span>${esc(($('#sn') && $('#sn').value) || CFG.shopName || '')}</span>`); };
+  prev(); $('#sn').oninput = prev; $('#st').onchange = prev;
+  $('#lr').onclick = () => { logo = ''; prev(); };
+  $('#lf').onchange = async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    $('#lp').innerHTML = '上傳中…';
+    try { const j = await api('upload', { mime: 'image/png', data: await shrink(f, 600, 'image/png') }); logo = j.url + '=s600'; }
+    catch (err) { toast('上傳失敗：' + err.message); }
+    prev();
+  };
+  $('#ss').onclick = async () => {
+    const name = $('#sn').value.trim(); if (!name) return $('#se').textContent = '請填店名';
+    const b = $('#ss'); b.disabled = true; b.textContent = '儲存中…';
+    try {
+      const cfg = { ...CFG, shopName: name, logo }; if (!$('#st').checked) cfg.hideName = 1; else delete cfg.hideName;
+      await saveConfig(cfg, false); applyBrand(); toast('已儲存，商城約 1～2 分鐘後更新'); b.disabled = false; b.textContent = '儲存';
+    } catch (err) { $('#se').textContent = err.message; b.disabled = false; b.textContent = '儲存'; }
+  };
+}
 
 /* ---------- 分類管理 ---------- */
 async function saveConfig(cfg, withProducts) {
@@ -564,14 +611,14 @@ function viewSync() {
 }
 
 // 手機照片縮到最長邊 1200px 的 JPEG，回傳 base64
-function shrink(file) {
+function shrink(file, max = 1200, type = 'image/jpeg') {
   return new Promise((res, rej) => {
     const url = URL.createObjectURL(file), im = new Image();
     im.onload = () => {
-      const s = Math.min(1, 1200 / Math.max(im.width, im.height));
+      const s = Math.min(1, max / Math.max(im.width, im.height));
       const cv = document.createElement('canvas'); cv.width = Math.round(im.width * s); cv.height = Math.round(im.height * s);
-      const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(im, 0, 0, cv.width, cv.height);
-      URL.revokeObjectURL(url); res(cv.toDataURL('image/jpeg', 0.85).split(',')[1]);
+      const cx = cv.getContext('2d'); if (type === 'image/jpeg') { cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); } cx.drawImage(im, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(url); res(cv.toDataURL(type, 0.85).split(',')[1]);
     };
     im.onerror = () => { URL.revokeObjectURL(url); rej(new Error('無法讀取這張照片')); };
     im.src = url;
