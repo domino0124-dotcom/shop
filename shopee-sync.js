@@ -99,10 +99,15 @@
   }
   function catOf(cats) {
     const brand = cats.filter(c => !c.g), generic = cats.filter(c => c.g && c.k.length).reverse();
-    const other = (cats.find(c => !c.k.length) || { n: '其他' }).n;
+    const other = ([...cats].reverse().find(c => !c.k.length) || { n: '其他' }).n;
+    // 英文字母開頭／結尾的關鍵字要整個字對上（避免 RAK 對到 BRAKE）
+    const hit = (u, k) => { k = k.toUpperCase(); let i = u.indexOf(k);
+      while (i >= 0) { const a = u[i - 1] || ' ', b = u[i + k.length] || ' ';
+        if (!(/[A-Z]/.test(k[0]) && /[A-Z]/.test(a)) && !(/[A-Z]/.test(k[k.length - 1]) && /[A-Z]/.test(b))) return true;
+        i = u.indexOf(k, i + 1); } return false; };
     return name => { const u = ' ' + (name || '').toUpperCase() + ' ', u2 = u.replace(/ /g, '');
       for (const c of brand) if (c.n.endsWith('部品') && u2.includes(c.n.replace(/ /g, '').toUpperCase())) return c.n;
-      for (const c of brand.concat(generic)) if (c.k.some(k => u.includes(k.toUpperCase()))) return c.n; return other; };
+      for (const c of brand.concat(generic)) if (c.k.some(k => hit(u, k))) return c.n; return other; };
   }
 
   async function build(files, cfg, onStep) {
@@ -155,5 +160,5 @@
     return { products: out, desc: descs, stats: { items: products.length, vars: products.reduce((a, p) => a + p.v.length, 0) } };
   }
 
-  root.ShopeeSync = { build };
+  root.ShopeeSync = { build, catOf };
 })(window);

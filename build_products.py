@@ -56,13 +56,20 @@ CFG_PATH = sys.argv[3] if len(sys.argv) > 3 else os.path.join(OUT, 'config.json'
 CATS = json.load(open(CFG_PATH, encoding='utf-8'))['categories']
 _brand = [c for c in CATS if not c.get('g')]
 _generic = [c for c in reversed(CATS) if c.get('g') and c['k']]
-OTHER = next((c['n'] for c in CATS if not c['k']), '其他')
+OTHER = next((c['n'] for c in reversed(CATS) if not c['k']), '其他')
+def _hit(u, k):  # 英文字母開頭／結尾的關鍵字要整個字對上（避免 RAK 對到 BRAKE）
+    k = k.upper(); i = u.find(k)
+    while i >= 0:
+        a = u[i-1] if i > 0 else ' '; b = u[i+len(k)] if i+len(k) < len(u) else ' '
+        if not ('A' <= k[0] <= 'Z' and 'A' <= a <= 'Z') and not ('A' <= k[-1] <= 'Z' and 'A' <= b <= 'Z'): return True
+        i = u.find(k, i + 1)
+    return False
 def cat_of(name):
     u = ' ' + (name or '').upper() + ' '
     for c in _brand:                      # 標題直接寫「XX部品」就以它為準
         if c['n'].endswith('部品') and c['n'].replace(' ', '').upper() in u.replace(' ', ''): return c['n']
     for c in _brand + _generic:
-        if any(k.upper() in u for k in c['k']): return c['n']
+        if any(_hit(u, k) for k in c['k']): return c['n']
     return OTHER
 
 # ---------- 描述整理：拿掉蝦皮通用說明，圖片另外列 ----------

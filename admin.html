@@ -66,7 +66,7 @@ label.f>span{display:block;font-size:13px;color:var(--ink2);margin-bottom:4px}
 .err{color:var(--accent);font-size:13px;margin-top:8px}
 .more{display:block;margin:14px auto;padding:8px 20px;border:1px solid var(--line);background:#fff;border-radius:999px}
 .empty{text-align:center;color:var(--ink2);padding:40px 0}
-.nav{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#e7e7e3;border-radius:10px;padding:4px;margin-bottom:12px}
+.nav{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;background:#e7e7e3;border-radius:10px;padding:4px;margin-bottom:12px}
 .nav button{border:0;background:none;border-radius:8px;height:38px;font-weight:700;color:var(--ink2)}
 .nav button.on{background:#fff;color:var(--ink);box-shadow:var(--shadow)}
 .oc{background:#fff;border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;display:grid;gap:6px}
@@ -77,6 +77,10 @@ label.f>span{display:block;font-size:13px;color:var(--ink2);margin-bottom:4px}
 .code{background:#e7f3ec;border-radius:8px;padding:8px 10px;font-size:13px}.code b{font-size:20px;letter-spacing:1px;color:var(--ok);margin-right:6px}
 .tag.b{background:#fde8e4;color:var(--accent)}
 .oc .acts2{display:flex;gap:8px;flex-wrap:wrap}
+.cr{background:#fff;border-radius:10px;box-shadow:var(--shadow);padding:10px;display:grid;grid-template-columns:1fr auto;gap:6px 8px;align-items:center}
+.cr .nm2{font-weight:700}.cr input{padding:7px 9px;font-size:14px}.cr .kw{grid-column:1/-1}
+.cr .ar{display:flex;gap:4px}.cr .ar button{width:32px;height:32px;border:1px solid var(--line);background:#fff;border-radius:7px;padding:0}
+.cr .cnt{font-size:12px;color:var(--ink2)}
 </style>
 </head>
 <body>
@@ -198,7 +202,7 @@ async function viewEdit(x) {
   <div class="box" style="margin-top:12px"><h2>${isNew ? '新增商品' : isShopee ? '修改蝦皮商品' : '編輯商品'}</h2>
     ${isShopee ? '<div class="hint" style="margin-top:-6px">修改只會影響網站，不會改到蝦皮</div>' : ''}
     <label class="f"><span>商品名稱 *</span><input id="n" value="${esc(it.n)}" placeholder="例：APEXX 煞車拉桿 勁戰六代"></label>
-    <label class="f"><span>分類</span><select id="c">${catList().map(c => `<option value="${esc(c)}"${c === it.c ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
+    <label class="f"><span>分類（可打字搜尋；打新名稱會自動新增分類）</span><input id="c" list="clist" value="${esc(it.c)}" autocomplete="off"><datalist id="clist">${catList().map(c => `<option value="${esc(c)}">`).join('')}</datalist></label>
     <label class="f sw" style="margin-top:14px"><input type="checkbox" id="on"${on ? ' checked' : ''}> 上架中（取消勾選＝下架，客人看不到）</label>
   </div>
   <div class="box"><h2>商品圖片 *</h2><div class="imgs" id="imgs"></div><div class="hint">第一張是封面。點「←」可往前移。照片會自動縮小再上傳。</div></div>
@@ -258,9 +262,16 @@ async function viewEdit(x) {
     if (!item.im.length) return er.textContent = '請至少上傳 1 張圖片';
     if (!item.v.length || item.v.some(v => !(v[1] > 0))) return er.textContent = '每個選項都要填價格';
     if (item.v.length > 1 && item.v.some(v => !v[0])) return er.textContent = '有多個選項時，每個選項都要填名稱';
+    if (!item.c) return er.textContent = '請選擇分類';
     if (isShopee && it.oi) item.oi = it.oi;
     const b = $('#save'); b.disabled = true; b.textContent = '儲存中…';
-    try { await api('save', { item, on: $('#on').checked, src: isShopee ? 'shopee' : 'custom' }); toast('已儲存，網站約 5 分鐘內更新'); await reloadRowsQuiet(); viewList(); }
+    try {
+      if (!catList().includes(item.c)) {
+        if (!confirm(`「${item.c}」是新分類，要新增嗎？`)) { b.disabled = false; b.textContent = '儲存'; return; }
+        const cats = [...CFG.categories]; cats.splice(cats.length - 1, 0, { n: item.c, k: [] });
+        await saveConfig({ ...CFG, categories: cats }, false);
+      }
+      await api('save', { item, on: $('#on').checked, src: isShopee ? 'shopee' : 'custom' }); toast('已儲存，網站約 5 分鐘內更新'); await reloadRowsQuiet(); viewList(); }
     catch (err) { er.textContent = err.message; b.disabled = false; b.textContent = '儲存'; }
   };
   if ($('#rm')) $('#rm').onclick = async () => {
@@ -270,8 +281,69 @@ async function viewEdit(x) {
   };
 }
 
-function nav(on) { return `<div class="nav"><button data-n="p" class="${on === 'p' ? 'on' : ''}">商品</button><button data-n="o" class="${on === 'o' ? 'on' : ''}">訂單</button></div>`; }
-function bindNav() { document.querySelectorAll('.nav button').forEach(b => b.onclick = () => b.dataset.n === 'o' ? viewOrders() : viewList()); }
+function nav(on) { return `<div class="nav">${[['p', '商品'], ['o', '訂單'], ['c', '分類']].map(([k, n]) => `<button data-n="${k}" class="${on === k ? 'on' : ''}">${n}</button>`).join('')}</div>`; }
+function bindNav() { document.querySelectorAll('.nav button').forEach(b => b.onclick = () => b.dataset.n === 'o' ? viewOrders() : b.dataset.n === 'c' ? viewCats() : viewList()); }
+
+/* ---------- 分類管理 ---------- */
+async function saveConfig(cfg, withProducts) {
+  const body = { config: JSON.stringify(cfg) };
+  let prod = null;
+  if (withProducts) {
+    const cat = ShopeeSync.catOf(cfg.categories);
+    prod = { ...PROD, items: PROD.items.map(p => ({ ...p, c: cat(p.n) })) };
+    prod.cats = cfg.categories.map(c => ({ k: c.n, n: c.n, cnt: prod.items.filter(p => p.c === c.n).length })).filter(c => c.cnt);
+    prod.items.forEach(p => { delete p._k; });
+    body.products = JSON.stringify(prod);
+  }
+  await api('save_config', body);
+  CFG = cfg;
+  if (prod) { PROD = prod; BASE = {}; PROD.items.forEach((x, k) => { x._k = k; BASE[x.i] = x; }); }
+}
+function viewCats() {
+  window.scrollTo(0, 0);
+  const rows = CFG.categories.map(c => ({ n: c.n, k: c.k.join('、'), g: c.g, orig: c.n }));
+  const counts = {}; allItems().forEach(p => counts[p.c] = (counts[p.c] || 0) + 1);
+  let q = '';
+  const draw = () => {
+    const vis = rows.map((r, i) => ({ r, i })).filter(({ r }) => !q || (r.n + r.k).toLowerCase().includes(q.toLowerCase()));
+    $('#cl').innerHTML = vis.map(({ r, i }) => {
+      const other = !r.k && i === rows.length - 1;
+      return `<div class="cr"><input data-i="${i}" data-f="n" value="${esc(r.n)}"${other ? ' disabled' : ''}>
+        <div class="ar"><button data-mv="-1" data-i="${i}">↑</button><button data-mv="1" data-i="${i}">↓</button>${other ? '' : `<button data-del="${i}">✕</button>`}</div>
+        ${other ? '<div class="cnt kw">對不到任何分類的商品會放這裡</div>' : `<input class="kw" data-i="${i}" data-f="k" value="${esc(r.k)}" placeholder="標題關鍵字（用、分開），例：KOSO、koso部品">`}
+        <div class="cnt kw">${counts[r.orig] || 0} 件商品</div></div>`;
+    }).join('') || '<div class="empty">找不到分類</div>';
+  };
+  $('#app').innerHTML = nav('c') + `<div class="row" style="margin-bottom:10px"><input id="cq" type="search" placeholder="搜尋分類"><button class="btn sm" style="height:44px;white-space:nowrap" id="cadd">＋ 新增分類</button></div>
+    <div class="hint" style="margin:-2px 0 10px">商品標題含有關鍵字，就會分進這個分類（由上往下比對）。順序也是商城顯示的順序。</div>
+    <div class="list" id="cl"></div>
+    <div class="bar"><button class="btn solid" id="csave">儲存並重新分類</button></div><div class="err" id="cer"></div>`;
+  bindNav(); draw();
+  $('#cq').oninput = e => { q = e.target.value.trim(); draw(); };
+  $('#cadd').onclick = () => {
+    const name = (prompt('新分類名稱') || '').trim(); if (!name) return;
+    if (rows.some(r => r.n === name)) return toast('已經有這個分類');
+    const kw = (prompt('標題關鍵字（用、分開，可留空）', name.replace(/部品$/, '')) || '').trim();
+    rows.splice(rows.length - 1, 0, { n: name, k: kw, orig: name }); q = ''; $('#cq').value = ''; draw();
+    $('#cl').lastElementChild.previousElementSibling.scrollIntoView({ block: 'center' });
+  };
+  $('#cl').oninput = e => { const t = e.target.closest('input[data-i]'); if (t) rows[+t.dataset.i][t.dataset.f] = t.value; };
+  $('#cl').onclick = e => {
+    const mv = e.target.closest('[data-mv]'), del = e.target.closest('[data-del]');
+    if (mv) { const i = +mv.dataset.i, j = i + +mv.dataset.mv; if (j < 0 || j >= rows.length - 1 || i >= rows.length - 1) return; [rows[i], rows[j]] = [rows[j], rows[i]]; draw(); }
+    if (del) { const i = +del.dataset.del; if (confirm(`刪除分類「${rows[i].n}」？\n裡面的商品會依關鍵字重新分到其他分類。`)) { rows.splice(i, 1); draw(); } }
+  };
+  $('#csave').onclick = async () => {
+    const er = $('#cer'); er.textContent = '';
+    const names = rows.map(r => r.n.trim());
+    if (names.some(n => !n)) return er.textContent = '分類名稱不能空白';
+    if (new Set(names).size !== names.length) return er.textContent = '有重複的分類名稱';
+    const cats = rows.map(r => { const c = { n: r.n.trim(), k: String(r.k || '').split(/[、,，\s]+/).map(x => x.trim()).filter(Boolean) }; if (r.g) c.g = 1; return c; });
+    const b = $('#csave'); b.disabled = true; b.textContent = '儲存中（約 10 秒）…';
+    try { await saveConfig({ ...CFG, categories: cats }, true); toast('已儲存，商城約 1～2 分鐘後更新'); viewCats(); }
+    catch (err) { er.textContent = err.message; b.disabled = false; b.textContent = '儲存並重新分類'; }
+  };
+}
 
 /* ---------- 訂單 ---------- */
 let OV = { f: 'todo' };

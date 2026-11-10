@@ -145,6 +145,18 @@ footer h3{font-size:14px;color:var(--ink);margin:0 0 6px}
 footer ul{margin:0 0 14px;padding-left:18px}
 .fgrid{display:grid;gap:12px}
 @media(min-width:760px){.fgrid{grid-template-columns:1fr 1fr}}
+.catp{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:none}
+.catp.on{display:block}
+.catp .in{position:absolute;left:0;right:0;top:0;max-height:85vh;background:#fff;border-radius:0 0 16px 16px;display:flex;flex-direction:column}
+.catp .hd2{display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.catp .hd2 input{flex:1;font:inherit;border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.catp .hd2 button{border:0;background:none;font-size:22px;padding:0 6px;color:var(--ink2)}
+.catp .gl{overflow:auto;padding:10px 16px 18px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(min-width:760px){.catp .in{max-width:760px;margin:0 auto}.catp .gl{grid-template-columns:repeat(3,1fr)}}
+.catp .gl button{text-align:left;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 12px;font-size:14px;display:flex;justify-content:space-between;gap:6px}
+.catp .gl button small{color:var(--ink2)}
+.catp .gl button.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+.chip.all{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:rgba(22,24,29,.92);color:#fff;padding:10px 18px;border-radius:999px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:50}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 .loading{padding:80px 0;text-align:center;color:var(--ink2)}
@@ -169,6 +181,7 @@ footer ul{margin:0 0 14px;padding-left:18px}
 </header>
 <main class="wrap" id="app"><div class="loading">載入商品中…</div></main>
 <footer><div class="wrap fgrid" id="foot"></div></footer>
+<div class="catp" id="catp"><div class="in"><div class="hd2"><input id="cq" type="search" placeholder="搜尋分類，例：KOSO、輪胎"><button id="cx" aria-label="關閉">✕</button></div><div class="gl" id="cgl"></div></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -292,8 +305,18 @@ function renderCats() {
   const have = new Set(DATA.items.map(p => p.c));
   const src = CFG.categories ? CFG.categories.map(c => ({ k: c.n, n: c.n })) : DATA.cats;
   DATA.cats = src.filter(c => have.has(c.k));
-  el.innerHTML = `<button class="chip" data-c="">全部</button>` + DATA.cats.map(c => `<button class="chip" data-c="${esc(c.k)}">${esc(c.n)}</button>`).join('');
-  el.onclick = e => { const b = e.target.closest('.chip'); if (!b) return; location.hash = b.dataset.c ? '#/c/' + encodeURIComponent(b.dataset.c) : '#/'; };
+  el.innerHTML = `<button class="chip all" id="allCats">☰ 全部分類</button><button class="chip" data-c="">全部</button>` + DATA.cats.map(c => `<button class="chip" data-c="${esc(c.k)}">${esc(c.n)}</button>`).join('');
+  el.onclick = e => { if (e.target.closest('#allCats')) return openCats(); const b = e.target.closest('.chip'); if (!b) return; location.hash = b.dataset.c ? '#/c/' + encodeURIComponent(b.dataset.c) : '#/'; };
+}
+function openCats() {
+  const cnt = {}; DATA.items.forEach(p => cnt[p.c] = (cnt[p.c] || 0) + 1);
+  const draw = q => { $('#cgl').innerHTML = [{ k: '', n: '全部商品' }].concat(DATA.cats).filter(c => !q || c.n.toLowerCase().includes(q.toLowerCase()))
+    .map(c => `<button data-c="${esc(c.k)}" class="${c.k === state.cat ? 'on' : ''}"><span>${esc(c.n)}</span><small>${c.k ? cnt[c.k] || 0 : DATA.items.length}</small></button>`).join('') || '<div class="stock">找不到分類</div>'; };
+  $('#cq').value = ''; draw(''); $('#catp').classList.add('on');
+  $('#cq').oninput = e => draw(e.target.value.trim());
+  $('#cgl').onclick = e => { const b = e.target.closest('button[data-c]'); if (!b) return; $('#catp').classList.remove('on'); location.hash = b.dataset.c ? '#/c/' + encodeURIComponent(b.dataset.c) : '#/'; };
+  $('#cx').onclick = () => $('#catp').classList.remove('on');
+  $('#catp').onclick = e => { if (e.target.id === 'catp') $('#catp').classList.remove('on'); };
 }
 function markCat() {
   document.querySelectorAll('.chip').forEach(b => b.classList.toggle('on', b.dataset.c === state.cat && !location.hash.match(/#\/(p|cart|checkout|done)/)));
