@@ -58,6 +58,16 @@ label.f>span{display:block;font-size:13px;color:var(--ink2);margin-bottom:4px}
 .imgs .up{display:grid;place-items:center;font-size:12px;color:var(--ink2)}
 .vrow{display:grid;grid-template-columns:1fr 92px 70px 32px;gap:6px;margin-top:8px;align-items:center}
 .vrow input{padding:9px 8px}
+.tierbox{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px}
+.tierbox .th{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:14px}
+.tierbox .th button{border:0;background:none;color:var(--ink2);font-size:13px;cursor:pointer;padding:4px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tag{background:#f1f2f4;border-radius:999px;padding:5px 4px 5px 12px;display:inline-flex;gap:2px;align-items:center;font-size:14px}
+.tag button{border:0;background:none;color:#999;font-size:13px;cursor:pointer;padding:2px 6px}
+.addt{display:flex;gap:6px;margin-top:8px}.addt input{flex:1;min-width:0}
+.vg{display:grid;grid-template-columns:minmax(0,1fr) 92px 70px;gap:6px;align-items:center;margin-top:6px}
+.vg .nm{font-size:14px;overflow-wrap:anywhere}.vg.h{font-size:12px;color:var(--ink2);margin-top:12px}
+.vg.all{background:#f7f7f5;border-radius:8px;padding:6px 0 6px 8px}
 .vhead{display:grid;grid-template-columns:1fr 92px 70px 32px;gap:6px;font-size:12px;color:var(--ink2);margin-top:6px}
 .del{border:0;background:none;color:#999;font-size:18px;padding:0}
 .hint{font-size:12.5px;color:var(--ink2);margin-top:6px}
@@ -555,11 +565,18 @@ async function viewEdit(x, fromHistory) {
     <label class="f sw" style="margin-top:8px"><input type="checkbox" id="fs"${it.fs ? ' checked' : ''}> 免運（買這個商品，7-11 整筆免運）</label>
   </div>
   <div class="box"><h2>規格與價格 *</h2>
-    <label class="f" style="margin-top:0"><span>規格名稱（例：顏色、車種；沒有規格可留空）</span><input id="t" value="${esc(it.t || '')}"></label>
-    <div class="vhead"><span>選項</span><span>價格 *</span><span>庫存</span><span></span></div>
-    <div id="vs"></div>
-    <button class="btn sm" style="margin-top:10px" id="addv">＋ 新增一個選項</button>
-    <div class="hint">兩層規格用逗號分開，例：「黑色,長版」「黑色,短版」。庫存留空＝有貨；填 0＝售完。</div></div>
+    <div class="hint" style="margin-top:0">沒有規格的商品，下面兩個選單都不用填，直接填價格。</div>
+    <div class="tierbox"><div class="th">選單 1</div>
+      <label class="f" style="margin-top:6px"><span>選單名稱（例：車種、顏色）</span><input id="t" value="${esc(it.t || '')}" placeholder="例：車種"></label>
+      <div class="tags" id="g1"></div>
+      <div class="addt"><input id="a1" placeholder="輸入選項，例：JET"><button class="btn sm" id="b1">＋ 加入</button></div></div>
+    <div class="tierbox" id="tb2" hidden><div class="th">選單 2<button id="rm2">✕ 移除選單 2</button></div>
+      <label class="f" style="margin-top:6px"><span>選單名稱（例：規格、尺寸）</span><input id="t2" value="${esc(it.t2 || '')}" placeholder="例：規格"></label>
+      <div class="tags" id="g2"></div>
+      <div class="addt"><input id="a2" placeholder="輸入選項，例：1208012"><button class="btn sm" id="b2">＋ 加入</button></div></div>
+    <button class="btn sm" style="margin-top:10px" id="tog2">＋ 加第二個選單</button>
+    <div id="vgrid"></div>
+    <div class="hint">價格留空＝這個組合不賣（客人選不到）。庫存留空＝有貨；填 0＝售完。</div></div>
   </div><div>
   <div class="box"><h2>商品圖片 *</h2><div class="imgs" id="imgs"></div><div class="hint">第一張是封面。點「←」可往前移。照片會自動縮小再上傳（電腦可一次選多張）。</div></div>
   <div class="box"><h2>商品說明</h2><textarea id="d" rows="7" placeholder="特色、適用車種、注意事項…">${esc(it.d || '')}</textarea></div>
@@ -591,18 +608,59 @@ async function viewEdit(x, fromHistory) {
     drawImgs();
   };
 
-  const vs = (it.v || []).map(v => [...v]);
-  if (!vs.length) vs.push(['', '', '', '']);
+  // ---- 規格：選單 1 × 選單 2 ----
+  const SEP = '\u241E', key = (x, y) => x + SEP + (y == null ? '' : y);
+  const o1 = [], o2 = [], cell = {};
+  const showStock = v => v === 99 && (isNew || !isShopee) ? '' : v;
+  const iv = it.v || [];
+  const isTwo = iv.length && iv.every(v => String(v[0]).includes(','));
+  let use2 = !!isTwo;
+  iv.forEach(v => {
+    const nm = String(v[0] || ''); let x = nm, y = null;
+    if (isTwo) { const k = nm.indexOf(','); x = nm.slice(0, k).trim(); y = nm.slice(k + 1).trim(); }
+    if (x && !o1.includes(x)) o1.push(x); if (y != null && !o2.includes(y)) o2.push(y);
+    cell[key(x, y)] = [v[1], showStock(v[2]), v[3] || ''];
+  });
+  const combos = () => !o1.length ? [['', null]] : o1.flatMap(x => use2 && o2.length ? o2.map(y => [x, y]) : [[x, null]]);
+  combos().forEach(([x, y]) => { if (!cell[key(x, y)]) cell[key(x, y)] = ['', '', '']; });   // 原本沒有的組合：先不賣
+  const defPrice = () => { const c = Object.values(cell).find(c => String(c[0]).trim()); return c ? c[0] : ''; };
   function drawVs() {
-    $('#vs').innerHTML = vs.map((v, k) => `<div class="vrow"><input data-k="${k}" data-f="0" value="${esc(v[0])}" placeholder="${k ? '' : '例：黑色'}">
-      <input data-k="${k}" data-f="1" type="number" inputmode="numeric" value="${esc(v[1])}" placeholder="價格">
-      <input data-k="${k}" data-f="2" type="number" inputmode="numeric" value="${v[2] === 99 && (isNew || !isShopee) ? '' : esc(v[2])}" placeholder="有貨">
-      <button class="del" data-rm="${k}">✕</button></div>`).join('');
+    $('#tb2').hidden = !use2; $('#tog2').hidden = use2;
+    const tag = (o, t) => `<span class="tag">${esc(o)}<button data-rmo="${t}" data-o="${esc(o)}">✕</button></span>`;
+    $('#g1').innerHTML = o1.map(o => tag(o, 1)).join('') || '<span class="hint" style="margin:0">還沒有選項</span>';
+    $('#g2').innerHTML = o2.map(o => tag(o, 2)).join('') || '<span class="hint" style="margin:0">還沒有選項</span>';
+    const cs = combos(), dp = defPrice();
+    cs.forEach(([x, y]) => { if (!cell[key(x, y)]) cell[key(x, y)] = [dp, '', '']; });
+    $('#vgrid').innerHTML = `<div class="vg h"><span>${o1.length ? '組合' : '價格（沒有規格）'}</span><span>價格 *</span><span>庫存</span></div>` +
+      (cs.length > 2 ? `<div class="vg all"><span class="nm">全部一次填 →</span><input id="pall" type="number" inputmode="numeric" placeholder="價格"><input id="sall" type="number" inputmode="numeric" placeholder="庫存"></div>` : '') +
+      cs.map(([x, y]) => { const c = cell[key(x, y)], k = esc(key(x, y));
+        return `<div class="vg"><span class="nm">${o1.length ? esc(x) + (y != null ? ' ／ ' + esc(y) : '') : '單一價格'}</span>
+        <input data-c="${k}" data-f="0" type="number" inputmode="numeric" value="${esc(c[0])}" placeholder="${o1.length ? '不賣' : '價格'}">
+        <input data-c="${k}" data-f="1" type="number" inputmode="numeric" value="${esc(c[1])}" placeholder="有貨"></div>`; }).join('');
   }
   drawVs();
-  $('#vs').oninput = e => { const i = e.target.closest('input[data-k]'); if (i) vs[+i.dataset.k][+i.dataset.f] = i.value; };
-  $('#vs').onclick = e => { const b = e.target.closest('[data-rm]'); if (b && vs.length > 1) { vs.splice(+b.dataset.rm, 1); drawVs(); } };
-  $('#addv').onclick = () => { vs.push(['', vs[vs.length - 1][1] || '', '', '']); drawVs(); };
+  const addOpt = t => {
+    const inp = $('#a' + t), list = t === 1 ? o1 : o2;
+    inp.value.split('\n').map(x => x.replace(/,/g, '，').trim()).filter(Boolean).forEach(x => { if (!list.includes(x)) list.push(x); });
+    inp.value = ''; drawVs(); inp.focus();
+  };
+  [1, 2].forEach(t => {
+    $('#b' + t).onclick = () => addOpt(t);
+    $('#a' + t).onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); addOpt(t); } };
+  });
+  $('#tog2').onclick = () => { use2 = true; drawVs(); $('#t2').focus(); };
+  $('#rm2').onclick = () => { if (o2.length && !confirm('移除選單 2？（選單 2 的選項會清掉）')) return; use2 = false; o2.length = 0; drawVs(); };
+  $('#g1').parentNode.parentNode.onclick = e => {
+    const b = e.target.closest('[data-rmo]'); if (!b) return;
+    const list = b.dataset.rmo === '1' ? o1 : o2, k = list.indexOf(b.dataset.o); if (k >= 0) list.splice(k, 1); drawVs();
+  };
+  $('#vgrid').oninput = e => {
+    const i = e.target;
+    if (i.dataset.c) { cell[i.dataset.c][+i.dataset.f] = i.value; return; }
+    if (i.id === 'pall' || i.id === 'sall') { const f = i.id === 'pall' ? 0 : 1;
+      combos().forEach(([x, y]) => { cell[key(x, y)][f] = i.value; });
+      $('#vgrid').querySelectorAll(`input[data-f="${f}"]`).forEach(el => el.value = i.value); }
+  };
   $('#back').onclick = () => backToList();
   $('#nc').onchange = () => { $('#sc').disabled = $('#nc').checked; if ($('#nc').checked) $('#fs').checked = false; };
   $('#fs').onchange = () => { if ($('#fs').checked) { $('#nc').checked = false; $('#sc').disabled = false; } };
@@ -617,12 +675,15 @@ async function viewEdit(x, fromHistory) {
     if ((scv && !(Number(scv) >= 0)) || (shv && !(Number(shv) >= 0))) return er.textContent = '運費請填 0 以上的數字，或留空用預設';
     const lkv = $('#lk').value.trim();
     if (lkv && !/^https?:\/\//.test(lkv)) return er.textContent = '外部連結要用 https:// 開頭';
-    const item = { i: isNew ? '' : it.i, lk: lkv, lkt: $('#lkt').value.trim(), fs: $('#fs').checked ? 1 : 0, nc: $('#nc').checked ? 1 : 0, sc: scv === '' ? null : Number(scv), sh: shv === '' ? null : Number(shv), n: $('#n').value.trim(), c: curCat, t: $('#t').value.trim(), im: ims, d: $('#d').value.trim(),
-      v: vs.filter(v => String(v[0]).trim() || String(v[1]).trim()).map(v => [String(v[0]).trim(), Number(v[1]), v[2] === '' ? '' : Number(v[2]), v[3] || '']) };
+    const item = { i: isNew ? '' : it.i, lk: lkv, lkt: $('#lkt').value.trim(), fs: $('#fs').checked ? 1 : 0, nc: $('#nc').checked ? 1 : 0, sc: scv === '' ? null : Number(scv), sh: shv === '' ? null : Number(shv), n: $('#n').value.trim(), c: curCat, t: o1.length ? $('#t').value.trim() : '', t2: o1.length && use2 && o2.length ? $('#t2').value.trim() : '', im: ims, d: $('#d').value.trim(),
+      v: combos().filter(([x, y]) => String(cell[key(x, y)][0]).trim() !== '').map(([x, y]) => { const c = cell[key(x, y)];
+        return [y != null ? x + ',' + y : x, Number(c[0]), String(c[1]).trim() === '' ? '' : Number(c[1]), c[2] || '']; }) };
+    if (use2 && o2.length && !o1.length) return er.textContent = '請先填選單 1 的選項';
     if (!item.n) return er.textContent = '請填寫商品名稱';
     if (!item.im.length) return er.textContent = '請至少上傳 1 張圖片';
-    if (!item.v.length || item.v.some(v => !(v[1] > 0))) return er.textContent = '每個選項都要填價格';
-    if (item.v.length > 1 && item.v.some(v => !v[0])) return er.textContent = '有多個選項時，每個選項都要填名稱';
+    if (!item.v.length) return er.textContent = '請至少填一個價格';
+    if (item.v.some(v => !(v[1] > 0))) return er.textContent = '價格要填大於 0 的數字';
+    if (!item.t2) delete item.t2;
     if (!item.c) return er.textContent = '請選擇分類';
     if (isShopee && it.oi) item.oi = it.oi;
     const b = $('#save'); b.disabled = true; b.textContent = '儲存中…';

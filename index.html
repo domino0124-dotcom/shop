@@ -247,6 +247,7 @@ const img = (id, tn) => {
   if (/^https?:/.test(id)) return /googleusercontent\.com\/d\//.test(id) ? id + (tn ? '=s400' : '=s1200') : id;
   return IMG + id + (tn ? '_tn' : '');
 };
+const vName = s => String(s || '').replace(',', ' ／ ');
 function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 1800); }
 
 /* ---------- 從 7-11 門市地圖回來：帶入門市 ---------- */
@@ -301,7 +302,7 @@ function loadExtras() {
       const wasWaiting = !extrasDone; extrasDone = true;
       if (changed) { applyExtras(ex); renderCats(); markCat(); }
       const onList = !/^#\/(p|cart|checkout|done)/.test(location.hash);
-      if (wasWaiting && /^#\/p\//.test(location.hash) && $('#waitP')) route();
+      if (/^#\/p\//.test(location.hash) && ($('#waitP') || (wasWaiting && changed))) route();   // 商品頁也換成後台改過的最新資料
       else if (changed && onList && window.scrollY < 300) viewList();
     }).catch(err => { console.warn('extras', err); extrasDone = true; if ($('#waitP')) route(); });
 }
@@ -480,7 +481,7 @@ function viewProduct(p) {
       <div class="price" id="pp">${priceTxt(p)}</div>${p.fs ? `<div class="fsb" style="margin-top:6px">🚚 ${esc(fsLabel())}</div>` : ''}
       ${p.nc || p.sc != null || p.sh != null ? `<div class="stock" style="margin-top:6px">🚚 運費：${p.nc ? '不能寄 7-11' : (p.fs ? '' : '7-11 ' + money(p.sc != null ? p.sc : CFG.shipping.cvs.fee))}${p.nc || !p.fs ? '｜' : ''}宅配 ${money(p.sh != null ? p.sh : CFG.shipping.home.fee)}${CFG.shipping.home.feeFrom && p.sh == null ? ' 起' : ''}</div>` : ''}
       ${single ? '' : `<div class="tier"><h3>${esc(p.t || '規格')}</h3><div class="opts" id="o1">${t1.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>
-      ${two ? `<div class="tier"><h3>選項</h3><div class="opts" id="o2">${t2.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}`}
+      ${two ? `<div class="tier"><h3>${esc(p.t2 || '選項')}</h3><div class="opts" id="o2">${t2.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}`}
       ${p.lk ? `<a class="btn solid block" style="display:grid;place-items:center;text-decoration:none;margin-top:16px" href="${esc(p.lk)}" target="_blank" rel="noopener">${esc(p.lkt || '前往了解')} ›</a>
       <div class="tip" style="color:var(--ink2);background:#f3f4f6">這個商品請透過上方連結辦理，不能加入購物車。有任何問題歡迎 LINE 詢問。</div>` : ''}
       <div class="row"${p.lk ? ' hidden' : ''}><span class="lab">數量</span><div class="qty"><button id="qm">−</button><input id="qn" type="number" inputmode="numeric" value="1" min="1"><button id="qp">＋</button></div><span class="stock" id="stk"></span></div>
@@ -530,13 +531,13 @@ function viewProduct(p) {
   $('#qm').onclick = () => setQ(qty - 1); $('#qp').onclick = () => setQ(qty + 1); $('#qn').onchange = e => setQ(+e.target.value);
   function go(buy) {
     const v = cur();
-    if (!v) { toast('請先選擇' + (p.t || '規格')); (o1 || o2).scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+    if (!v) { toast('請先選擇' + (two ? (sel1 === null ? (p.t || '規格') : (p.t2 || '選項')) : (p.t || '規格'))); (o1 || o2).scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
     if (v[2] <= 0) return toast('此規格已售完');
     addCart(p.i, v[3], qty);
     if (buy) location.hash = '#/cart'; else toast('已加入購物車');
   }
   $('#add').onclick = () => go(false); $('#buy').onclick = () => go(true);
-  $('#ask').onclick = () => { const v = cur(); $('#ask').href = lineMsg(`我想問這個商品：\n${p.n}${v && v[0] ? '\n規格：' + v[0] : ''}\n${location.origin + location.pathname}#/p/${p.i}`); };
+  $('#ask').onclick = () => { const v = cur(); $('#ask').href = lineMsg(`我想問這個商品：\n${p.n}${v && v[0] ? '\n規格：' + vName(v[0]) : ''}\n${location.origin + location.pathname}#/p/${p.i}`); };
   refresh();
 
   loadDesc().then(() => {
@@ -559,7 +560,7 @@ function viewCart() {
   $('#app').innerHTML = `<div class="bar"><h1>購物車<small>${L.length} 項</small></h1></div>
   <div class="lay"><div class="box">${L.map((l, k) => `<div class="ci">
       <a href="#/p/${l.p.i}"><img src="${img((l.p.oi && l.p.oi[(l.v[0] || '').split(',')[0].trim()]) || l.p.im[0], 1)}" alt=""></a>
-      <div><a class="nm" href="#/p/${l.p.i}">${esc(l.p.n)}</a>${l.v[0] ? `<div class="vn">${esc(l.v[0])}</div>` : ''}
+      <div><a class="nm" href="#/p/${l.p.i}">${esc(l.p.n)}</a>${l.v[0] ? `<div class="vn">${esc(vName(l.v[0]))}</div>` : ''}
         <div class="bt"><div class="qty"><button data-k="${k}" data-d="-1">−</button><input data-k="${k}" type="number" inputmode="numeric" value="${l.c.q}"><button data-k="${k}" data-d="1">＋</button></div>
         <span class="price">${money(l.sub)}</span></div>
         <button class="del" data-del="${k}">刪除</button></div></div>`).join('')}</div>
@@ -603,7 +604,7 @@ function viewCheckout() {
       <input class="hp" name="website" tabindex="-1" autocomplete="off">
     </div></div>
     <div><div class="box"><h2>訂單明細</h2>
-      ${L.map(l => `<div class="sum" style="font-size:13.5px;gap:10px"><span>${esc(l.p.n)}${l.v[0] ? '（' + esc(l.v[0]) + '）' : ''} ×${l.c.q}</span><span style="white-space:nowrap">${money(l.sub)}</span></div>`).join('')}
+      ${L.map(l => `<div class="sum" style="font-size:13.5px;gap:10px"><span>${esc(l.p.n)}${l.v[0] ? '（' + esc(vName(l.v[0])) + '）' : ''} ×${l.c.q}</span><span style="white-space:nowrap">${money(l.sub)}</span></div>`).join('')}
       <div class="sum" style="border-top:1px solid var(--line);margin-top:8px;padding-top:8px"><span>商品小計</span><span>${money(sub)}</span></div>
       <div class="sum"><span>運費</span><span id="fee"></span></div>
       <div class="sum total"><span>總計</span><span id="tot"></span></div>
