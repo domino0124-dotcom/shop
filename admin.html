@@ -229,7 +229,11 @@ async function api(op, extra) {
 }
 
 /* ---------- 啟動 ---------- */
-Promise.all([fetch('config.json', { cache: 'no-cache' }).then(r => r.json()), fetch('products.json', { cache: 'no-cache' }).then(r => r.json())])
+// 加快開啟：設定檔一到就同時去 GAS 拿商品修改資料，不用等商品檔下載完
+let LISTP = null;
+const cfgP = fetch('config.json', { cache: 'no-cache' }).then(r => r.json());
+cfgP.then(c => { CFG = c; if (pw) { LISTP = api('list'); LISTP.catch(() => {}); } }).catch(() => {});
+Promise.all([cfgP, fetch('products.json', { cache: 'no-cache' }).then(r => r.json())])
   .then(([c, p]) => { CFG = c; applyBrand(); PROD = p; IMG = p.img; p.items.forEach((x, k) => { x._k = k; BASE[x.i] = x; }); pw ? loadRows() : viewLogin(); })
   .catch(e => { $('#app').innerHTML = '<div class="empty">載入失敗：' + esc(e.message) + '</div>'; });
 
@@ -246,15 +250,30 @@ function viewLogin(msg) {
   $('#go').onclick = go; $('#pw').onkeydown = e => { if (e.key === 'Enter') go(); };
 }
 
+// 上次的資料先存在這台電腦，打開時馬上顯示，背景再跟 GAS 對一次最新的
+function setRows(rows) { ROWS = {}; rows.forEach(r => ROWS[r.id] = r); ls.set('wade_admin_rows', rows); }
+function firstView() {
+  const m = location.hash.match(/^#edit\/(.+)$/);
+  const it = m && allItems().find(x => x.i === decodeURIComponent(m[1]));
+  it ? viewEdit(it) : viewList();
+}
 async function loadRows() {
-  $('#app').innerHTML = '<div class="empty">讀取商品資料…</div>';
+  const cached = ls.get('wade_admin_rows', null);
+  if (cached) { ROWS = {}; cached.forEach(r => ROWS[r.id] = r); firstView(); }
+  else $('#app').innerHTML = '<div class="empty">讀取商品資料…</div>';
   try {
-    const j = await api('list'); ROWS = {}; j.rows.forEach(r => ROWS[r.id] = r);
-    const m = location.hash.match(/^#edit\/(.+)$/);
-    const it = m && allItems().find(x => x.i === decodeURIComponent(m[1]));
-    it ? viewEdit(it) : viewList();
+    const j = await (LISTP || api('list')); LISTP = null;
+    const same = cached && JSON.stringify(cached) === JSON.stringify(j.rows);
+    setRows(j.rows);
+    if (!cached) return firstView();
+    // 資料有變，而且你沒在編輯／打字時，才重畫清單（停在原本的頁和位置）
+    const typing = document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+    if (!same && !EDITING && $('#lv') && !typing && !SAVEQ.n && !document.querySelector('.modal, #pl')) { const y = scrollY; viewList(); scrollTo(0, y); }
   }
-  catch (e) { pw ? $('#app').innerHTML = `<div class="empty">${esc(e.message)}<br><br><button class="btn" onclick="location.reload()">重試</button></div>` : viewLogin(e.message); }
+  catch (e) {
+    if (cached) { if (!pw) viewLogin(e.message); else toast('最新資料讀取失敗，先顯示上次的資料'); return; }
+    pw ? $('#app').innerHTML = `<div class="empty">${esc(e.message)}<br><br><button class="btn" onclick="location.reload()">重試</button></div>` : viewLogin(e.message);
+  }
 }
 
 /* ---------- 商品清單 ---------- */
@@ -539,7 +558,7 @@ function drawQ() {
   drawQ.was = SAVEQ.n;
 }
 window.addEventListener('beforeunload', e => { if (SAVEQ.n) { e.preventDefault(); e.returnValue = ''; } });
-async function reloadRowsQuiet() { const j = await api('list'); ROWS = {}; j.rows.forEach(r => ROWS[r.id] = r); }
+async function reloadRowsQuiet() { const j = await api('list'); setRows(j.rows); }
 
 /* ---------- 編輯 / 新增 ---------- */
 let descCache = null;
