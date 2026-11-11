@@ -114,6 +114,10 @@ select.sort{font:inherit;font-size:13px;border:1px solid var(--line);background:
 .add input{width:18px;height:18px;margin:0;flex:none;accent-color:var(--accent)}
 .add.on{border-color:var(--accent);background:#fff6f4}
 .add .ap{margin-left:auto;white-space:nowrap;color:var(--accent);font-weight:600}
+.ann{background:#fff4d6;color:#7a4b00;font-size:14px;line-height:1.55;border-bottom:1px solid #f0d58a}
+.ann.info{background:#e8f1fd;color:#1d3f6e;border-color:#c5d9f3}
+.ann .wrap{display:flex;gap:10px;align-items:flex-start;padding-top:9px;padding-bottom:9px}
+.ann .tx{flex:1;white-space:pre-line}.ann button{border:0;background:none;color:inherit;opacity:.6;font-size:15px;cursor:pointer;padding:0 2px}
 .tier h3{font-size:13px;color:var(--ink2);margin:0 0 8px;font-weight:600}
 .opts{display:flex;flex-wrap:wrap;gap:8px}
 .opt{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 11px;font-size:13.5px;text-align:left;line-height:1.35}
@@ -209,6 +213,7 @@ footer ul{margin:0 0 14px;padding-left:18px}
 </head>
 <body>
 <div id="demo" class="demo" hidden>測試模式：尚未設定接單網址，訂單不會送出</div>
+<div id="ann" class="ann" hidden><div class="wrap"><span>📢</span><div class="tx" id="annt"></div><button id="annx" aria-label="關閉公告">✕</button></div></div>
 <header>
   <div class="wrap hd">
     <a class="logo" href="#/" id="logo"><b>W</b><span>韋德機車精品</span></a>
@@ -277,7 +282,7 @@ Promise.all([
   $('#logo').innerHTML = (CFG.logo ? `<img src="${esc(CFG.logo)}" alt="${esc(CFG.shopName)}">` : '<b>W</b>') + (CFG.hideName ? '' : `<span>${esc(CFG.shopName)}</span>`);
   $('#chat').href = lineMsg('你好，我想詢問商品～'); $('#chat').hidden = false;
   if (CFG.logo) { const ic = document.createElement('link'); ic.rel = 'icon'; ic.href = CFG.logo; document.head.appendChild(ic); }
-  renderCats(); renderFoot(); badge();
+  renderCats(); renderFoot(); badge(); showAnn();
   if (cached && Date.now() - cached.at < 5 * 60 * 1000) extrasDone = true;
   route();
   if (!extrasDone) loadExtras();
@@ -424,6 +429,16 @@ function filtered() {
   else if (state.sort === 'desc') list = [...list].sort((a, b) => b.p - a.p);
   else list = [...list].sort((a, b) => (a.so || 0) - (b.so || 0) || a._idx - b._idx);
   return list;
+}
+// 店面公告（後台「設定 → 店面公告」）：有設日期就只在那段期間顯示
+function showAnn() {
+  const a = CFG.ann; if (!a || !a.on || !String(a.text || '').trim()) return;
+  const today = new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);
+  if ((a.from && today < a.from) || (a.to && today > a.to)) return;
+  let closed = ''; try { closed = sessionStorage.getItem('wade_ann_x') || ''; } catch (e) {}
+  if (closed === a.text) return;
+  $('#annt').textContent = a.text; $('#ann').classList.toggle('info', a.tone === 'info'); $('#ann').hidden = false;
+  $('#annx').onclick = () => { $('#ann').hidden = true; try { sessionStorage.setItem('wade_ann_x', a.text); } catch (e) {} };
 }
 function priceTxt(p) { return p.p === p.P ? money(p.p) : money(p.p) + ' – ' + Number(p.P).toLocaleString('en-US'); }
 function card(p) {

@@ -846,7 +846,22 @@ $('#home').onclick = e => { e.preventDefault(); if (!pw || !PROD) return; SEL.cl
 function viewSettings() {
   window.scrollTo(0, 0); REDRAW = null;
   let logo = CFG.logo || '';
-  $('#app').innerHTML = nav('s') + `<div class="box"><h2>資料備份</h2>
+  const A = { on: false, text: '', from: '', to: '', tone: 'warn', ...(CFG.ann || {}) };
+  const tw = d => { const x = new Date(Date.now() + 8 * 3600e3 + d * 864e5); return x.toISOString().slice(0, 10); };
+  const md = s => { const [, m, d] = s.split('-'); const w = '日一二三四五六'[new Date(s + 'T00:00:00+08:00').getDay()]; return `${+m}/${+d}（${w}）`; };
+  $('#app').innerHTML = nav('s') + `<div class="box"><h2>📢 店面公告</h2>
+    <div class="hint" style="margin-top:0">會顯示在商城每一頁的最上面。例：公休、出貨延遲、活動。存檔後約 1～2 分鐘商城會更新。</div>
+    <label class="f sw" style="margin-top:10px"><input type="checkbox" id="aon"${A.on ? ' checked' : ''}> 顯示公告</label>
+    <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:10px">
+      <button class="btn sm" data-tpl="today">今天公休</button><button class="btn sm" data-tpl="tmr">明天公休</button><button class="btn sm" data-tpl="range">連續公休</button><button class="btn sm" data-tpl="ship">出貨延遲</button></div>
+    <label class="f"><span>公告內容</span><textarea id="atx" rows="3" placeholder="例：11/12（四）店休一天，訂單與訊息將於 11/13 依序處理，造成不便敬請見諒。">${esc(A.text)}</textarea></label>
+    <div class="row" style="gap:10px;flex-wrap:wrap;margin-top:10px">
+      <label class="f" style="margin:0;flex:1;min-width:140px"><span>從（留空＝馬上）</span><input type="date" id="afr" value="${esc(A.from)}"></label>
+      <label class="f" style="margin:0;flex:1;min-width:140px"><span>到（留空＝一直顯示）</span><input type="date" id="ato" value="${esc(A.to)}"></label></div>
+    <label class="f"><span>顏色</span><select id="atn"><option value="warn"${A.tone !== 'info' ? ' selected' : ''}>黃色（提醒、公休）</option><option value="info"${A.tone === 'info' ? ' selected' : ''}>藍色（一般消息、活動）</option></select></label>
+    <div class="hint">過了「到」的日期，公告會自動消失，不用記得關。</div>
+    <button class="btn solid" style="width:100%;margin-top:12px" id="asv">儲存公告</button><div class="err" id="aer"></div></div>
+  <div class="box"><h2>資料備份</h2>
     <div class="hint" style="margin-top:0">商品修改資料和分類清單，會備份到你雲端硬碟的「韋德商城備份」試算表（每次一個新分頁，保留最近 30 次）。</div>
     <div id="bki" style="margin-top:10px;font-size:14px;line-height:1.8">讀取中…</div>
     <button class="btn" style="width:100%;margin-top:10px" id="bkn">☁ 立即備份</button><div class="err" id="bke"></div></div>
@@ -873,6 +888,26 @@ function viewSettings() {
     try { const j = await api('upload', { mime: 'image/png', data: await shrink(f, 600, 'image/png') }); logo = j.url + '=s600'; }
     catch (err) { toast('上傳失敗：' + err.message); }
     prev();
+  };
+  document.querySelectorAll('[data-tpl]').forEach(b => b.onclick = () => {
+    const t = b.dataset.tpl;
+    if (t === 'today' || t === 'tmr') { const d = tw(t === 'today' ? 0 : 1), n = tw(t === 'today' ? 1 : 2);
+      $('#atx').value = `${md(d)}店休一天，訂單與訊息將於 ${md(n)}起依序處理，造成不便敬請見諒 🙏`; $('#afr').value = t === 'today' ? '' : tw(0); $('#ato').value = d; }
+    if (t === 'range') { const f = $('#afr').value || tw(0), e = $('#ato').value || tw(2);
+      $('#atx').value = `${md(f)}～${md(e)}店休，期間的訂單與訊息將於收假後依序處理，造成不便敬請見諒 🙏`; $('#afr').value = ''; $('#ato').value = e;
+      toast('請確認日期；「到」設成最後一天公休日'); }
+    if (t === 'ship') { $('#atx').value = '近期訂單較多，出貨約需 3～5 個工作天，急件請先 LINE 詢問，謝謝您的耐心 🙏'; $('#afr').value = ''; $('#ato').value = ''; }
+    $('#aon').checked = true; $('#atn').value = t === 'ship' ? 'info' : 'warn';
+  });
+  $('#asv').onclick = async () => {
+    const b = $('#asv'), er = $('#aer'); er.textContent = '';
+    const ann = { on: $('#aon').checked, text: $('#atx').value.trim().slice(0, 300), from: $('#afr').value, to: $('#ato').value, tone: $('#atn').value };
+    if (ann.on && !ann.text) return er.textContent = '請填公告內容';
+    if (ann.from && ann.to && ann.from > ann.to) return er.textContent = '「從」的日期不能晚於「到」';
+    b.disabled = true; b.textContent = '儲存中…';
+    try { await saveConfig({ ...CFG, ann }, false); toast(ann.on ? '公告已儲存，商城約 1～2 分鐘後顯示' : '公告已關閉'); }
+    catch (e) { er.textContent = e.message; }
+    b.disabled = false; b.textContent = '儲存公告';
   };
   const drawBk = j => {
     $('#bki').innerHTML = `上次備份：<b>${esc(j.at || '還沒備份過')}</b><br>每天自動備份：${j.auto ? '<b style="color:var(--ok)">已開啟</b>（每天凌晨 3 點，資料沒變就不重複備份）' : '<b style="color:var(--warn)">還沒開啟</b>（請在 GAS 執行一次 shopSetupBackup）'}` +
