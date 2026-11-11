@@ -122,6 +122,11 @@ input.sel{width:18px;height:18px;accent-color:var(--accent);margin:0;cursor:poin
 .hp .c .x{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:12px;padding:0}
 .hp .c .l{position:absolute;top:4px;left:4px;height:22px;border-radius:6px;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:0 6px}
 .hp .c.off{opacity:.45}
+.catb{border:1px dashed #c9c9c3;background:#fafaf8;border-radius:7px;padding:4px 9px;font-size:13px;color:var(--ink);white-space:nowrap;margin-top:4px;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.catb:hover{border-color:var(--accent);color:var(--accent);background:#fff5f3}
+.catb.saving{opacity:.5}
+.bulk .main{background:var(--accent);color:#fff;border-color:var(--accent);font-size:15px;height:40px;padding:0 16px}
+.bulk .more2{display:contents}.bulk.min .more2{display:none}
 .pgr{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin:12px 0;font-size:14px}
 .pgr select{width:auto;padding:5px 6px;font-size:14px}.pgr .ps{color:var(--ink2)}
 .pk .ls .pi{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:center;font-size:13.5px}
@@ -258,7 +263,8 @@ function viewList(keep) {   // keep = 只更新下面清單，搜尋框不重畫
   if (keep !== true) keep = false;
   if (keep && !$('#lv')) keep = false;
   document.title = '商城後台｜韋德機車精品';
-  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+  if (location.hash && !(history.state && history.state.edit)) history.replaceState(null, '', location.pathname + location.search);
+  EDITING = false;
   const tabs = [['all', '全部'], ['c', '我新增的'], ['m', '已修改'], ['off', '已下架']];
   let list = allItems();
   const cnt = { all: list.length, c: list.filter(x => x._kind === 'c').length, m: list.filter(x => x._kind === 'm').length, off: list.filter(x => !x._on).length };
@@ -273,7 +279,7 @@ function viewList(keep) {   // keep = 只更新下面清單，搜尋框不重畫
   const body = !list.length ? '<div class="empty">沒有商品</div>' : W
     ? `<table class="tbl"><thead><tr><th><input type="checkbox" class="sel" id="selall" title="全選這一頁"></th><th></th>${sh('n', '商品名稱')}${sh('c', '分類')}${sh('p', '價格')}<th>狀態</th><th></th></tr></thead><tbody>${pageList.map(trow).join('')}</tbody></table>`
     : pageList.map(row).join('');
-  const rest = `<div class="chips" style="flex-wrap:wrap">${tabs.map(([k, n]) => `<button class="chip${view.tab === k ? ' on' : ''}" data-t="${k}">${n} ${cnt[k]}</button>`).join('')}<span class="hint" style="margin:0 0 0 6px;align-self:center">共 ${list.length} 件${W ? '　・Ctrl＋點「編輯」開新分頁　・勾選可多選' : ''}</span></div>
+  const rest = `<div class="chips" style="flex-wrap:wrap">${tabs.map(([k, n]) => `<button class="chip${view.tab === k ? ' on' : ''}" data-t="${k}">${n} ${cnt[k]}</button>`).join('')}<span class="hint" style="margin:0 0 0 6px;align-self:center">共 ${list.length} 件　・點分類（✎）就能直接改${W ? '　・勾選多個可一起「移到分類」' : ''}</span></div>
     ${list.length > view.ps ? pager(list) : ''}
     <div class="list" id="list">${body}</div>
     ${list.length > view.ps ? pager(list) : ''}
@@ -310,6 +316,19 @@ function viewList(keep) {   // keep = 只更新下面清單，搜尋框不重畫
   if ($('#selall')) $('#selall').onchange = e => { vis.forEach(i => e.target.checked ? SEL.add(i) : SEL.delete(i)); markSel(); bulkBar(list); };
   markSel(); bulkBar(list);
   $('#list').onclick = async e => {
+    const cb = e.target.closest('.catb[data-cat]');
+    if (cb) {
+      e.preventDefault(); const x = list.find(y => y.i === cb.dataset.cat); if (!x) return;
+      return pickCat(x.c, async c => {
+        if (c === x.c) return;
+        cb.classList.add('saving'); cb.textContent = c + ' 儲存中…';
+        try {
+          if (!catList().includes(c)) { const cats = [...CFG.categories]; cats.splice(cats.length - 1, 0, { n: c, k: [] }); await saveConfig({ ...CFG, categories: cats }, false); }
+          const it = cleanItem(x); it.c = c; await api('save', { item: it, on: x._on, src: BASE[x.i] ? 'shopee' : 'custom' });
+          await reloadRowsQuiet(); x.c = c; cb.classList.remove('saving'); cb.textContent = c + ' ✎'; toast('已改成「' + c + '」');
+        } catch (err) { cb.classList.remove('saving'); cb.textContent = (x.c || '未分類') + ' ✎'; alert(err.message); }
+      });
+    }
     const ed = e.target.closest('a.ed');
     if (ed) { if (e.ctrlKey || e.metaKey || e.shiftKey) return; e.preventDefault(); return viewEdit(list.find(x => x.i === ed.dataset.id)); }
     const ck = e.target.closest('input.sel[data-id]');
@@ -327,13 +346,13 @@ function viewList(keep) {   // keep = 只更新下面清單，搜尋框不重畫
 function row(x) {
   const tag = (x._kind === 'c' ? '<span class="tag c">新增</span>' : x._kind === 'm' ? '<span class="tag m">已修改</span>' : '') + (x._on ? '' : '<span class="tag h">下架</span>');
   return `<div class="it${x._on ? '' : ' off'}" data-row="${esc(x.i)}"><img src="${img(x.im && x.im[0], 1)}" loading="lazy" alt="">
-    <div><div class="nm"><input type="checkbox" class="sel" data-id="${esc(x.i)}" style="vertical-align:-3px;margin-right:6px">${tag}${esc(x.n)}</div><div class="pr">${x.p === x.P ? money(x.p) : money(x.p) + '–' + Number(x.P).toLocaleString()}</div></div>
+    <div><div class="nm"><input type="checkbox" class="sel" data-id="${esc(x.i)}" style="vertical-align:-3px;margin-right:6px">${tag}${esc(x.n)}</div><div class="pr">${x.p === x.P ? money(x.p) : money(x.p) + '–' + Number(x.P).toLocaleString()}</div><button class="catb" data-cat="${esc(x.i)}">${esc(x.c || '未分類')} ✎</button></div>
     <div class="acts"><a class="btn sm ed" href="#edit/${encodeURIComponent(x.i)}" data-id="${esc(x.i)}">編輯</a><button class="btn sm gray" data-a="tog" data-id="${esc(x.i)}">${x._on ? '下架' : '上架'}</button></div></div>`;
 }
 function trow(x) {
   const tag = (x._kind === 'c' ? '<span class="tag c">新增</span>' : x._kind === 'm' ? '<span class="tag m">已修改</span>' : '');
   return `<tr class="${x._on ? '' : 'off'}" data-row="${esc(x.i)}"><td><input type="checkbox" class="sel" data-id="${esc(x.i)}"></td><td><img src="${img(x.im && x.im[0], 1)}" loading="lazy" alt=""></td>
-    <td><a class="nm ed" href="#edit/${encodeURIComponent(x.i)}" data-id="${esc(x.i)}" title="Ctrl＋點擊可在新分頁編輯">${tag}${esc(x.n)}</a></td><td class="sub">${esc(x.c || '')}</td>
+    <td><a class="nm ed" href="#edit/${encodeURIComponent(x.i)}" data-id="${esc(x.i)}" title="Ctrl＋點擊可在新分頁編輯">${tag}${esc(x.n)}</a></td><td><button class="catb" data-cat="${esc(x.i)}" title="點一下改分類">${esc(x.c || '未分類')} ✎</button></td>
     <td class="pr">${x.p === x.P ? money(x.p) : money(x.p) + '–' + Number(x.P).toLocaleString()}</td>
     <td>${x._on ? '<span class="tag c">上架中</span>' : '<span class="tag h">已下架</span>'}${x.fs ? ' <span class="tag c">免運</span>' : ''}${x.nc ? ' <span class="tag h">不寄7-11</span>' : ''}${x.sc != null || x.sh != null ? ' <span class="tag m">運費</span>' : ''}</td>
     <td class="ac"><a class="btn sm ed" href="#edit/${encodeURIComponent(x.i)}" data-id="${esc(x.i)}" title="Ctrl＋點擊可在新分頁編輯">編輯</a><button class="btn sm gray" data-a="tog" data-id="${esc(x.i)}">${x._on ? '下架' : '上架'}</button></td></tr>`;
@@ -353,21 +372,36 @@ function bulkBar(list) {
   document.body.classList.add('has-bulk');
   if (!bar) {
     bar = document.createElement('div'); bar.className = 'bulk'; bar.id = 'bulk';
+    bar.className = 'bulk min';
     bar.innerHTML = `<b id="bn"></b>
-      <span class="grp"><select id="bp"><option value="">價格不變</option><option value="set">價格設為</option><option value="add">價格加減（元）</option><option value="pct">價格打折（%）</option></select><input id="bpv" type="number" inputmode="numeric" placeholder="" hidden>
+      <button class="btn sm main" id="bmv">📁 移到分類…</button>
+      <button class="btn sm gray" id="bmore">其他修改 ▾</button>
+      <span class="more2"><span class="grp"><select id="bp"><option value="">價格不變</option><option value="set">價格設為</option><option value="add">價格加減（元）</option><option value="pct">價格打折（%）</option></select><input id="bpv" type="number" inputmode="numeric" placeholder="" hidden>
         <select id="br" hidden><option value="1">取整到 1 元</option><option value="10">取整到 10 元</option></select></span>
       <span class="grp"><select id="bs"><option value="">庫存不變</option><option value="set">庫存設為</option><option value="ok">改成有貨</option><option value="0">改成售完</option></select><input id="bsv" type="number" inputmode="numeric" hidden></span>
       <button class="btn sm gray" id="bc" data-c="">分類不變</button>
       <span class="grp"><select id="bsp"><option value="">運費不變</option><option value="sc">7-11 運費設為</option><option value="sh">宅配運費設為</option><option value="nc">不能寄 7-11</option><option value="def">恢復預設運費</option></select><input id="bspv" type="number" inputmode="numeric" placeholder="金額" hidden></span>
       <select id="bf"><option value="">免運不變</option><option value="1">設為免運</option><option value="0">取消免運</option></select>
       <select id="bo"><option value="">上下架不變</option><option value="on">全部上架</option><option value="off">全部下架</option></select>
-      <button class="btn sm solid" id="bgo">套用</button><button class="btn sm gray" id="bx">取消選取</button>`;
+      <button class="btn sm solid" id="bgo">套用</button></span><button class="btn sm gray" id="bx">取消選取</button>`;
     document.body.appendChild(bar);
     $('#bp').onchange = () => { const v = $('#bp').value; $('#bpv').hidden = !v; $('#br').hidden = v !== 'pct'; $('#bpv').placeholder = v === 'pct' ? '例：95' : v === 'add' ? '例：-100' : '金額'; $('#bpv').focus(); };
     $('#bs').onchange = () => { $('#bsv').hidden = $('#bs').value !== 'set'; };
     $('#bsp').onchange = () => { const v = $('#bsp').value; $('#bspv').hidden = !(v === 'sc' || v === 'sh'); if (!$('#bspv').hidden) $('#bspv').focus(); };
     $('#bc').onclick = () => pickCat($('#bc').dataset.c, c => { $('#bc').dataset.c = c; $('#bc').textContent = '分類：' + c; });
     $('#bx').onclick = () => { SEL.clear(); REDRAW && REDRAW(); bulkBar([]); };
+    $('#bmore').onclick = () => { bar.classList.toggle('min'); $('#bmore').textContent = bar.classList.contains('min') ? '其他修改 ▾' : '收起 ▴'; };
+    $('#bmv').onclick = () => pickCat('', async c => {
+      const all = {}; allItems().forEach(x => all[x.i] = x); const ids = [...SEL].filter(i => all[i]);
+      if (!confirm(`把 ${ids.length} 件商品移到「${c}」？`)) return;
+      const b = $('#bmv'); b.disabled = true;
+      try {
+        const nw = !catList().includes(c);
+        if (nw) { const cats = [...CFG.categories]; cats.splice(cats.length - 1, 0, { n: c, k: [] }); await saveConfig({ ...CFG, categories: cats }, false); }
+        await saveMany(ids.map(i => { const it = cleanItem(all[i]); it.c = c; return { item: it, on: all[i]._on, src: BASE[i] ? 'shopee' : 'custom' }; }), b);
+        await reloadRowsQuiet(); SEL.clear(); bulkBar([]); toast(`已把 ${ids.length} 件移到「${c}」`); viewList(true);
+      } catch (err) { alert(err.message); } finally { b.disabled = false; b.textContent = '📁 移到分類…'; }
+    });
   }
   $('#bn').textContent = `已選 ${SEL.size} 件`;
   $('#bgo').onclick = () => applyBulk();
@@ -472,7 +506,25 @@ async function reloadRowsQuiet() { const j = await api('list'); ROWS = {}; j.row
 
 /* ---------- 編輯 / 新增 ---------- */
 let descCache = null;
-async function viewEdit(x) {
+// 編輯頁的返回：記住清單在第幾頁、捲到哪，返回時回到原位
+let EDITING = false, LISTY = 0;
+function backToList() {
+  if (history.state && history.state.edit) history.back();   // 交給 popstate 處理
+  else { EDITING = false; viewList(); requestAnimationFrame(() => window.scrollTo(0, LISTY)); }
+}
+addEventListener('popstate', () => {
+  if (!PROD || !pw) return;
+  const m = location.hash.match(/^#edit\/(.+)$/);
+  if (m) { const id = decodeURIComponent(m[1]); const it = allItems().find(x => x.i === id); if (it) return viewEdit(it, true); return; }
+  if (EDITING) { EDITING = false; viewList(); requestAnimationFrame(() => window.scrollTo(0, LISTY)); }
+});
+async function viewEdit(x, fromHistory) {
+  if (!fromHistory) {
+    if (!EDITING) LISTY = window.scrollY;
+    const tag = '#edit/' + encodeURIComponent(x ? x.i : 'new');
+    if (location.hash !== tag) history.pushState({ edit: 1 }, '', location.pathname + location.search + tag);
+  }
+  EDITING = true;
   const isNew = !x, isShopee = !!(x && BASE[x.i]);
   const it = x ? JSON.parse(JSON.stringify(x)) : { n: '', c: catList()[0], im: [], v: [['', '', '', '']], t: '' };
   if (isShopee && it.d == null) {
@@ -549,7 +601,7 @@ async function viewEdit(x) {
   $('#vs').oninput = e => { const i = e.target.closest('input[data-k]'); if (i) vs[+i.dataset.k][+i.dataset.f] = i.value; };
   $('#vs').onclick = e => { const b = e.target.closest('[data-rm]'); if (b && vs.length > 1) { vs.splice(+b.dataset.rm, 1); drawVs(); } };
   $('#addv').onclick = () => { vs.push(['', vs[vs.length - 1][1] || '', '', '']); drawVs(); };
-  $('#back').onclick = () => viewList();
+  $('#back').onclick = () => backToList();
   $('#nc').onchange = () => { $('#sc').disabled = $('#nc').checked; if ($('#nc').checked) $('#fs').checked = false; };
   $('#fs').onchange = () => { if ($('#fs').checked) { $('#nc').checked = false; $('#sc').disabled = false; } };
   let curCat = catList().includes(it.c) ? it.c : '';
@@ -575,12 +627,12 @@ async function viewEdit(x) {
         const cats = [...CFG.categories]; cats.splice(cats.length - 1, 0, { n: item.c, k: [] });
         await saveConfig({ ...CFG, categories: cats }, false);
       }
-      await api('save', { item, on: $('#on').checked, src: isShopee ? 'shopee' : 'custom' }); toast('已儲存，網站約 5 分鐘內更新'); await reloadRowsQuiet(); viewList(); }
+      await api('save', { item, on: $('#on').checked, src: isShopee ? 'shopee' : 'custom' }); toast('已儲存，網站約 5 分鐘內更新'); await reloadRowsQuiet(); backToList(); }
     catch (err) { er.textContent = err.message; b.disabled = false; b.textContent = '儲存'; }
   };
   if ($('#rm')) $('#rm').onclick = async () => {
     if (!confirm(isShopee ? '要還原成蝦皮的原始資料嗎？（你在網站做的修改會清掉）' : '確定刪除這個商品？')) return;
-    try { await api('delete', { id: it.i }); toast(isShopee ? '已還原' : '已刪除'); await reloadRowsQuiet(); viewList(); }
+    try { await api('delete', { id: it.i }); toast(isShopee ? '已還原' : '已刪除'); await reloadRowsQuiet(); backToList(); }
     catch (err) { $('#er').textContent = err.message; }
   };
 }
