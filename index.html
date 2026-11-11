@@ -74,6 +74,14 @@ select.sort{font:inherit;font-size:13px;border:1px solid var(--line);background:
 .hrow .pc{scroll-snap-align:start}
 @media(min-width:640px){.hrow{grid-auto-columns:30%}}
 @media(min-width:900px){.hrow{grid-auto-flow:row;grid-template-columns:repeat(5,1fr);grid-auto-columns:auto;overflow:visible}}
+.spg{display:flex;justify-content:center;align-items:center;gap:6px;margin:22px 0 8px;flex-wrap:wrap}
+.spg button{min-width:38px;height:38px;border:1px solid var(--line);background:#fff;border-radius:9px;font-weight:600}
+.spg button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.spg button:disabled{opacity:.35}
+.spg span{color:var(--ink2)}
+.spg .jmp{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--ink2);margin-left:6px}
+.spg .jmp input{width:64px;height:38px;border:1px solid var(--line);border-radius:9px;text-align:center;font:inherit}
+.spg .jmp button{min-width:auto;padding:0 12px}
 .more{display:block;margin:18px auto;padding:10px 22px;border:1px solid var(--line);background:#fff;border-radius:999px}
 .empty{text-align:center;color:var(--ink2);padding:60px 0}
 
@@ -221,7 +229,7 @@ const store = {
 };
 
 let CFG, DATA, IMG, BYID = {}, DESC = null, descP = null, BASE = [], extrasDone = false;
-let state = { cat: '', q: '', sort: 'def', shown: 40 };
+let state = { cat: '', q: '', sort: 'def', pg: 0 };
 let cart = store.get('wade_cart', []);   // [{i, v(variationId), q}]
 let lastOrder = store.get('wade_last_order', null);
 
@@ -337,8 +345,9 @@ function route() {
   if (h[0] === 'cart') return viewCart();
   if (h[0] === 'checkout') return cart.length ? viewCheckout() : (location.hash = '#/cart');
   if (h[0] === 'done') return viewDone();
-  state.cat = h[0] === 'c' ? decodeURIComponent(h[1] || '') : '';
-  state.shown = 40; viewList();
+  const nc = h[0] === 'c' ? decodeURIComponent(h[1] || '') : '';
+  if (nc !== state.cat) state.pg = 0;   // 換分類才回第 1 頁；看完商品按返回會停在原本那頁
+  state.cat = nc; viewList();
 }
 
 /* ---------- category bar ---------- */
@@ -377,7 +386,7 @@ qEl.addEventListener('input', e => {
   qx.style.display = qEl.value ? 'block' : 'none';
   if (qComp || e.isComposing) return;
   clearTimeout(qt); qt = setTimeout(() => {
-    state.q = qEl.value.trim(); state.shown = 40;
+    state.q = qEl.value.trim(); state.pg = 0;
     if (/^#\/(p|cart|checkout|done)/.test(location.hash)) location.hash = state.cat ? '#/c/' + state.cat : '#/'; else viewList();
   }, 220);
 });
@@ -407,15 +416,25 @@ function viewList() {
   $('#app').innerHTML = home.map(sc => `<section class="hs"><h2>${esc(sc.t)}</h2><div class="hrow">${sc.items.map(card).join('')}</div></section>`).join('') +
     `<div class="bar"><h1>${title}<small>${list.length} 件</small></h1>
     <select class="sort" id="sort"><option value="def">最新上架</option><option value="asc">價格低→高</option><option value="desc">價格高→低</option></select></div>
-    ${list.length ? `<div class="grid" id="grid">${list.slice(0, state.shown).map(card).join('')}</div>` : `<div class="empty">找不到相關商品<br>換個關鍵字，或 <a href="${CFG.line}" target="_blank" rel="noopener">LINE 詢問我們</a></div>`}
-    ${list.length > state.shown ? '<button class="more" id="more">看更多</button>' : ''}`;
+    ${list.length ? `<div class="grid" id="grid">${list.slice(state.pg * PS, state.pg * PS + PS).map(card).join('')}</div>` : `<div class="empty">找不到相關商品<br>換個關鍵字，或 <a href="${CFG.line}" target="_blank" rel="noopener">LINE 詢問我們</a></div>`}
+    ${spager(list.length)}`;
   $('#sort').value = state.sort;
-  $('#sort').onchange = e => { state.sort = e.target.value; state.shown = 40; viewList(); };
-  const more = $('#more');
-  if (more) {
-    more.onclick = () => { const from = state.shown; state.shown += 40; $('#grid').insertAdjacentHTML('beforeend', list.slice(from, state.shown).map(card).join('')); if (state.shown >= list.length) more.remove(); };
-    if ('IntersectionObserver' in window) new IntersectionObserver((en, ob) => { if (en[0].isIntersecting && document.body.contains(more)) more.click(); else if (!document.body.contains(more)) ob.disconnect(); }, { rootMargin: '600px' }).observe(more);
-  }
+  $('#sort').onchange = e => { state.sort = e.target.value; state.pg = 0; viewList(); };
+  const toPage = k => { state.pg = k; viewList(); const g = $('#grid'); window.scrollTo(0, g ? g.getBoundingClientRect().top + window.scrollY - 170 : 0); };
+  document.querySelectorAll('.spg [data-pg]').forEach(b => b.onclick = () => toPage(+b.dataset.pg));
+  document.querySelectorAll('.spg .jmp').forEach(j => { const i = j.querySelector('input'), n = +i.max;
+    const go = () => { const k = parseInt(i.value, 10); if (k >= 1 && k <= n) toPage(k - 1); else { i.value = ''; toast(`請輸入 1～${n}`); } };
+    j.querySelector('[data-go]').onclick = e => { e.preventDefault(); go(); }; i.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } }; });
+}
+// 商城分頁：一頁 20 件
+const PS = 20;
+function spager(total) {
+  const n = Math.ceil(total / PS); if (n <= 1) return '';
+  if (state.pg >= n) state.pg = n - 1;
+  const c = state.pg, nums = [];
+  for (let k = 0; k < n; k++) if (k === 0 || k === n - 1 || Math.abs(k - c) <= 1) nums.push(k); else if (nums[nums.length - 1] !== '…') nums.push('…');
+  return `<div class="spg"><button data-pg="${c - 1}"${c === 0 ? ' disabled' : ''}>‹</button>${nums.map(k => k === '…' ? '<span>…</span>' : `<button data-pg="${k}" class="${k === c ? 'on' : ''}">${k + 1}</button>`).join('')}<button data-pg="${c + 1}"${c >= n - 1 ? ' disabled' : ''}>›</button>
+    <label class="jmp">跳到第 <input type="number" inputmode="numeric" min="1" max="${n}" placeholder="${c + 1}"> 頁<button data-go>前往</button></label></div>`;
 }
 
 /* ---------- product view ---------- */

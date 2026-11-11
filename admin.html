@@ -122,6 +122,8 @@ input.sel{width:18px;height:18px;accent-color:var(--accent);margin:0;cursor:poin
 .hp .c .x{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:12px;padding:0}
 .hp .c .l{position:absolute;top:4px;left:4px;height:22px;border-radius:6px;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:0 6px}
 .hp .c.off{opacity:.45}
+.pgr{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin:12px 0;font-size:14px}
+.pgr select{width:auto;padding:5px 6px;font-size:14px}.pgr .ps{color:var(--ink2)}
 .pk .ls .pi{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:center;font-size:13.5px}
 .pk .ls .pi img{width:44px;height:44px;object-fit:cover;border-radius:6px;background:#eee}
 .pk .ls .pi.added{opacity:.5}
@@ -175,7 +177,24 @@ const ls = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSO
 function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2000); }
 
 let CFG, PROD, IMG, BASE = {}, ROWS = {}, pw = ls.get('wade_admin_pw', '');
-let view = { tab: 'all', q: '', shown: 30, cat: '', sk: '', sd: 1 };
+let view = { tab: 'all', q: '', pg: 0, ps: Number(ls.get('wade_ps', 20)) || 20, cat: '', sk: '', sd: 1 };
+// 分頁：一頁 view.ps 件
+const pageOf = list => { const n = Math.max(1, Math.ceil(list.length / view.ps)); if (view.pg >= n) view.pg = n - 1; if (view.pg < 0) view.pg = 0; return list.slice(view.pg * view.ps, view.pg * view.ps + view.ps); };
+function pager(list) {
+  const n = Math.max(1, Math.ceil(list.length / view.ps)), cur = view.pg + 1;
+  return `<div class="pgr"><button class="btn sm gray" data-pg="${view.pg - 1}"${cur <= 1 ? ' disabled' : ''}>‹ 上一頁</button>
+    <span>第 <select data-pgsel>${Array.from({ length: n }, (_, k) => `<option value="${k}"${k === view.pg ? ' selected' : ''}>${k + 1}</option>`).join('')}</select> / ${n} 頁</span>
+    <button class="btn sm gray" data-pg="${view.pg + 1}"${cur >= n ? ' disabled' : ''}>下一頁 ›</button>
+    <span>跳到 <input type="number" data-jump min="1" max="${n}" placeholder="頁數" style="width:70px;padding:5px 6px;font-size:14px"> 頁</span>
+    <span class="ps">每頁 <select data-ps>${[10, 15, 20, 30, 50].map(k => `<option${k === view.ps ? ' selected' : ''}>${k}</option>`).join('')}</select> 件</span></div>`;
+}
+function bindPager(redraw, guard) {
+  const go = fn => (guard ? guard(fn) : fn());
+  document.querySelectorAll('.pgr [data-pg]').forEach(b => b.onclick = () => go(() => { view.pg = +b.dataset.pg; redraw(); window.scrollTo(0, 0); }));
+  document.querySelectorAll('.pgr [data-pgsel]').forEach(sel => sel.onchange = () => go(() => { view.pg = +sel.value; redraw(); window.scrollTo(0, 0); }));
+  document.querySelectorAll('.pgr [data-jump]').forEach(i => i.onkeydown = e => { if (e.key !== 'Enter') return; const k = parseInt(i.value, 10), n = +i.max; if (k >= 1 && k <= n) go(() => { view.pg = k - 1; redraw(); window.scrollTo(0, 0); }); else { i.value = ''; toast(`請輸入 1～${n}`); } });
+  document.querySelectorAll('.pgr [data-ps]').forEach(sel => sel.onchange = () => go(() => { view.ps = +sel.value; ls.set('wade_ps', view.ps); view.pg = 0; redraw(); }));
+}
 let REDRAW = null;
 const SEL = new Set(); let LAST = null;
 const wide = () => matchMedia('(min-width: 900px)').matches;
@@ -248,15 +267,16 @@ function viewList(keep) {   // keep = 只更新下面清單，搜尋框不重畫
   if (view.q) { const ks = view.q.toLowerCase().split(/\s+/); list = list.filter(x => { const s = (x.n + ' ' + x.i).toLowerCase(); return ks.every(k => s.includes(k)); }); }
   if (view.cat) list = list.filter(x => x.c === view.cat);
   if (view.sk) { const k = view.sk, d = view.sd; list = [...list].sort((a, b) => (k === 'p' ? a.p - b.p : String(a[k] || '').localeCompare(String(b[k] || ''), 'zh-Hant')) * d); }
-  const W = wide(); if (W && view.shown < 60) view.shown = 60;
+  const W = wide(); const pageList = pageOf(list);
   if (view.quick) return viewQuick(list, cnt, tabs);
   const sh = (k, n) => `<th data-s="${k}">${n}${view.sk === k ? (view.sd > 0 ? ' ▲' : ' ▼') : ''}</th>`;
   const body = !list.length ? '<div class="empty">沒有商品</div>' : W
-    ? `<table class="tbl"><thead><tr><th><input type="checkbox" class="sel" id="selall" title="全選這一頁"></th><th></th>${sh('n', '商品名稱')}${sh('c', '分類')}${sh('p', '價格')}<th>狀態</th><th></th></tr></thead><tbody>${list.slice(0, view.shown).map(trow).join('')}</tbody></table>`
-    : list.slice(0, view.shown).map(row).join('');
+    ? `<table class="tbl"><thead><tr><th><input type="checkbox" class="sel" id="selall" title="全選這一頁"></th><th></th>${sh('n', '商品名稱')}${sh('c', '分類')}${sh('p', '價格')}<th>狀態</th><th></th></tr></thead><tbody>${pageList.map(trow).join('')}</tbody></table>`
+    : pageList.map(row).join('');
   const rest = `<div class="chips" style="flex-wrap:wrap">${tabs.map(([k, n]) => `<button class="chip${view.tab === k ? ' on' : ''}" data-t="${k}">${n} ${cnt[k]}</button>`).join('')}<span class="hint" style="margin:0 0 0 6px;align-self:center">共 ${list.length} 件${W ? '　・Ctrl＋點「編輯」開新分頁　・勾選可多選' : ''}</span></div>
+    ${list.length > view.ps ? pager(list) : ''}
     <div class="list" id="list">${body}</div>
-    ${list.length > view.shown ? '<button class="more" id="more">看更多</button>' : ''}
+    ${list.length > view.ps ? pager(list) : ''}
     <button class="fab" id="new">＋ 新增商品</button>`;
   if (keep) $('#lv').innerHTML = rest;
   else {
@@ -266,21 +286,21 @@ function viewList(keep) {   // keep = 只更新下面清單，搜尋框不重畫
       <button class="btn sm" style="height:44px;white-space:nowrap" id="sync">從蝦皮同步</button></div><div id="lv">${rest}</div>`;
     // 搜尋：注音／拼音選完字才搜尋，只更新下面清單
     const q = $('#q'); let comp = false, qt;
-    const run = () => { clearTimeout(qt); qt = setTimeout(() => { const v = q.value.trim(); if (v === view.q) return; view.q = v; view.shown = 30; viewList(true); }, 250); };
+    const run = () => { clearTimeout(qt); qt = setTimeout(() => { const v = q.value.trim(); if (v === view.q) return; view.q = v; view.pg = 0; viewList(true); }, 250); };
     q.addEventListener('compositionstart', () => { comp = true; });
     q.addEventListener('compositionend', () => { comp = false; run(); });
     q.oninput = e => { if (comp || e.isComposing) return; run(); };
-    $('#cf').onchange = e => { view.cat = e.target.value; view.shown = 30; viewList(true); };
+    $('#cf').onchange = e => { view.cat = e.target.value; view.pg = 0; viewList(true); };
     $('#sync').onclick = () => viewSync();
     $('#qk').onclick = () => { view.quick = true; SEL.clear(); viewList(); };
     bindNav();
   }
-  document.querySelectorAll('.chip[data-t]').forEach(b => b.onclick = () => { view.tab = b.dataset.t; view.shown = 30; viewList(true); });
-  if ($('#more')) $('#more').onclick = () => { view.shown += W ? 60 : 30; viewList(true); };
-  document.querySelectorAll('th[data-s]').forEach(th => th.onclick = () => { const k = th.dataset.s; view.sd = view.sk === k ? -view.sd : 1; view.sk = k; viewList(true); });
+  document.querySelectorAll('.chip[data-t]').forEach(b => b.onclick = () => { view.tab = b.dataset.t; view.pg = 0; viewList(true); });
+  bindPager(() => viewList(true));
+  document.querySelectorAll('th[data-s]').forEach(th => th.onclick = () => { const k = th.dataset.s; view.sd = view.sk === k ? -view.sd : 1; view.sk = k; view.pg = 0; viewList(true); });
   REDRAW = viewList; REDRAW._w = W;
   $('#new').onclick = () => viewEdit(null);
-  const vis = list.slice(0, view.shown).map(x => x.i);
+  const vis = pageList.map(x => x.i);
   const pick = (id, shift, force) => {
     if (shift && LAST && vis.includes(LAST)) { const a = vis.indexOf(LAST), b = vis.indexOf(id); vis.slice(Math.min(a, b), Math.max(a, b) + 1).forEach(i => SEL.add(i)); }
     else if (force === true || (force == null && !SEL.has(id))) SEL.add(id); else SEL.delete(id);
@@ -393,7 +413,7 @@ function viewQuick(list, cnt, tabs) {
   const CH = {};   // id -> 改過的規格陣列
   const CC = {};   // id -> 改過的分類
   const copt = c => catList().map(n => `<option${n === c ? ' selected' : ''}>${esc(n)}</option>`).join('');
-  const show = list.slice(0, view.shown);
+  const show = pageOf(list);
   const rows = show.map(x => x.v.map((v, k) => `<tr data-row="${esc(x.i)}">
       ${k === 0 ? `<td rowspan="${x.v.length}"><img src="${img(x.im && x.im[0], 1)}" loading="lazy" alt=""></td><td rowspan="${x.v.length}" class="pn">${esc(x.n)}${x._on ? '' : '<div class="sub">已下架</div>'}</td><td rowspan="${x.v.length}" style="width:170px"><select data-cat="${esc(x.i)}">${copt(x.c)}</select></td>` : ''}
       <td class="sub">${esc(v[0] || '（單一規格）')}</td>
@@ -403,7 +423,7 @@ function viewQuick(list, cnt, tabs) {
       <select id="cf"><option value="">全部分類</option>${catList().map(c => `<option${c === view.cat ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
     <div class="box" style="padding:12px 14px"><b>快速編輯</b>　<span class="hint" style="margin:0">直接改分類、價格、庫存，改過的格子會變黃色。按 Enter 跳到下一列。分類欄標題的選單可以把這頁全部改成同一個分類。</span></div>
     ${show.length ? `<table class="tbl qe"><thead><tr><th></th><th>商品</th><th>分類<br><select id="callq" style="margin-top:4px;font-weight:400"><option value="">這頁全部改成…</option>${copt('')}</select></th><th>規格</th><th>價格</th><th>庫存</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="empty">沒有商品</div>'}
-    ${list.length > view.shown ? `<button class="more" id="more">再載入 ${Math.min(60, list.length - view.shown)} 件（共 ${list.length} 件）</button>` : ''}
+    ${list.length > view.ps ? pager(list) : ''}
     <div class="qbar"><button class="btn gray" id="qx" style="flex:1">結束快速編輯</button><button class="btn solid" id="qs" style="flex:2" disabled>儲存變更</button></div>`;
   bindNav();
   const byId = {}; show.forEach(x => byId[x.i] = x);
@@ -411,11 +431,11 @@ function viewQuick(list, cnt, tabs) {
   const dirty = () => { const n = changedIds().length; $('#qs').disabled = !n; $('#qs').textContent = n ? `儲存變更（${n} 件商品）` : '儲存變更'; };
   const leave = fn => { if (changedIds().length && !confirm('還有沒儲存的修改，確定離開？')) return; fn(); };
   let qt, comp = false; const qq = $('#q');
-  const run = () => { clearTimeout(qt); qt = setTimeout(() => leave(() => { const v = qq.value.trim(); if (v === view.q) return; view.q = v; view.shown = 60; viewList(); const n = $('#q'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }), 500); };
+  const run = () => { clearTimeout(qt); qt = setTimeout(() => leave(() => { const v = qq.value.trim(); if (v === view.q) return; view.q = v; view.pg = 0; viewList(); const n = $('#q'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }), 500); };
   qq.addEventListener('compositionstart', () => { comp = true; }); qq.addEventListener('compositionend', () => { comp = false; run(); });
   qq.oninput = e => { if (comp || e.isComposing) return; run(); };
-  $('#cf').onchange = e => leave(() => { view.cat = e.target.value; view.shown = 60; viewList(); });
-  if ($('#more')) $('#more').onclick = () => leave(() => { view.shown += 60; viewList(); });
+  $('#cf').onchange = e => leave(() => { view.cat = e.target.value; view.pg = 0; viewList(); });
+  bindPager(() => viewList(), leave);
   $('#qx').onclick = () => leave(() => { view.quick = false; viewList(); });
   const tb = document.querySelector('.qe tbody');
   if (tb) {
@@ -636,7 +656,7 @@ function applyBrand() {
   let ic = document.querySelector('link[rel=icon]');
   if (CFG.logo) { if (!ic) { ic = document.createElement('link'); ic.rel = 'icon'; document.head.appendChild(ic); } ic.href = CFG.logo; }
 }
-$('#home').onclick = e => { e.preventDefault(); if (!pw || !PROD) return; SEL.clear(); bulkBar([]); view.quick = false; view.tab = 'all'; view.q = ''; view.cat = ''; view.shown = 30; viewList(); window.scrollTo(0, 0); };
+$('#home').onclick = e => { e.preventDefault(); if (!pw || !PROD) return; SEL.clear(); bulkBar([]); view.quick = false; view.tab = 'all'; view.q = ''; view.cat = ''; view.pg = 0; viewList(); window.scrollTo(0, 0); };
 
 /* ---------- 設定：Logo、店名 ---------- */
 function viewSettings() {
