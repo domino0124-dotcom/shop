@@ -315,11 +315,15 @@ function fsHit(method) {
   return f.rule === 'all' ? ps.every(p => p.fs) : ps.some(p => p.fs);
 }
 const fsLabel = () => (CFG.freeShip && CFG.freeShip.ships || ['cvs']).map(k => CFG.shipping[k] ? CFG.shipping[k].name : k).join('、') + ' 免運';
+// 商品自訂運費：sc＝7-11、sh＝宅配；nc＝不能寄 7-11。一個包裹取最貴的運費
+const itemFee = (p, method, base) => method === 'cvs' ? (p.sc != null ? p.sc : base) : method === 'home' ? (p.sh != null ? p.sh : base) : base;
+const cvsBlocked = () => cart.some(c => BYID[c.i] && BYID[c.i].nc);
 function shipFee(method, subtotal) {
   const s = CFG.shipping[method]; if (!s) return 0;
   if (fsHit(method)) return 0;
   if (CFG.freeShippingOver > 0 && subtotal >= CFG.freeShippingOver && method !== 'store') return 0;
-  return s.fee || 0;
+  const base = s.fee || 0, ps = cart.map(c => BYID[c.i]).filter(Boolean);
+  return ps.length ? Math.max(...ps.map(p => itemFee(p, method, base))) : base;
 }
 
 /* ---------- router ---------- */
@@ -436,6 +440,7 @@ function viewProduct(p) {
     <div class="info">
       <h1>${esc(p.n)}</h1>
       <div class="price" id="pp">${priceTxt(p)}</div>${p.fs ? `<div class="fsb" style="margin-top:6px">🚚 ${esc(fsLabel())}</div>` : ''}
+      ${p.nc || p.sc != null || p.sh != null ? `<div class="stock" style="margin-top:6px">🚚 運費：${p.nc ? '不能寄 7-11' : (p.fs ? '' : '7-11 ' + money(p.sc != null ? p.sc : CFG.shipping.cvs.fee))}${p.nc || !p.fs ? '｜' : ''}宅配 ${money(p.sh != null ? p.sh : CFG.shipping.home.fee)}${CFG.shipping.home.feeFrom && p.sh == null ? ' 起' : ''}</div>` : ''}
       ${single ? '' : `<div class="tier"><h3>${esc(p.t || '規格')}</h3><div class="opts" id="o1">${t1.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>
       ${two ? `<div class="tier"><h3>選項</h3><div class="opts" id="o2">${t2.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}`}
       <div class="row"><span class="lab">數量</span><div class="qty"><button id="qm">−</button><input id="qn" type="number" inputmode="numeric" value="1" min="1"><button id="qp">＋</button></div><span class="stock" id="stk"></span></div>
@@ -539,12 +544,13 @@ function viewCheckout() {
   const saved = store.get('wade_buyer', {});
   const ships = Object.entries(CFG.shipping);
   let ship = saved.ship && CFG.shipping[saved.ship] ? saved.ship : ships[0][0];
+  const noCvs = cvsBlocked(); if (noCvs && ship === 'cvs') ship = ships.find(([k]) => k !== 'cvs')[0];
   let pay = null;
   const fv = (k) => esc(saved[k] || '');
 
   $('#app').innerHTML = `<button class="back" onclick="location.hash='#/cart'">‹ 回購物車</button>
   <form id="fm" novalidate><div class="lay"><div>
-    <div class="box"><h2>取貨方式</h2><div class="radios" id="ships">${ships.map(([k, s]) => `<label class="radio" data-k="${k}"><input type="radio" name="ship" value="${k}"><span class="r">${esc(s.name)}</span><small>${shipFee(k, sub) ? '運費 ' + money(s.fee) + (s.feeFrom ? ' 起' : '') : (s.fee ? '<b style="color:var(--ok)">免運</b>' : '免運')}</small></label>`).join('')}</div>
+    <div class="box"><h2>取貨方式</h2><div class="radios" id="ships">${ships.map(([k, s]) => `<label class="radio" data-k="${k}"><input type="radio" name="ship" value="${k}"><span class="r">${esc(s.name)}</span><small>${k === 'cvs' && noCvs ? '購物車有大型商品，無法寄 7-11' : shipFee(k, sub) ? '運費 ' + money(shipFee(k, sub)) + (s.feeFrom && shipFee(k, sub) === s.fee ? ' 起' : '') : (s.fee ? '<b style="color:var(--ok)">免運</b>' : '免運')}</small></label>`).join('')}</div>
       <div id="shipExtra"></div></div>
     <div class="box"><h2>付款方式</h2><div class="radios" id="pays"></div><div class="hint" id="payHint"></div></div>
     <div class="box"><h2>訂購人資料</h2>
@@ -587,7 +593,7 @@ function viewCheckout() {
   function renderPay() {
     document.querySelectorAll('#pays .radio').forEach(r => { const on = r.dataset.k === pay; r.classList.toggle('on', on); r.querySelector('input').checked = on; });
     $('#payHint').textContent = pay === 'transfer' ? `確認有貨後請於 ${CFG.transferDays} 天內轉帳，送出後會顯示匯款帳號。` : pay === 'cod' ? '商品到店後，於 7-11 取貨時付款。' : '到店取貨時付款，可付現。';
-    const fee = shipFee(ship, sub), sf = CFG.shipping[ship]; $('#fee').textContent = fee ? money(fee) + (sf.feeFrom ? ' 起' : '') : '免運'; $('#tot').textContent = money(sub + fee) + (fee && sf.feeFrom ? ' 起' : '');
+    const fee = shipFee(ship, sub), sf = CFG.shipping[ship]; const fromTag = sf.feeFrom && fee === sf.fee ? ' 起' : ''; $('#fee').textContent = fee ? money(fee) + fromTag : '免運'; $('#tot').textContent = money(sub + fee) + (fee ? fromTag : '');
     $('#feeNote').textContent = sf.feeNote || '';
     $('#nameHint').textContent = ship === 'cvs' ? '7-11 取貨要核對證件，請填真實姓名（中文 2～5 字）' : '';
   }
@@ -607,7 +613,8 @@ function viewCheckout() {
       document.body.appendChild(f); f.submit();
     } catch (err) { b.disabled = false; b.textContent = '📍 選擇 7-11 門市'; toast('無法開啟地圖：' + err.message); }
   }
-  $('#ships').onclick = e => { const r = e.target.closest('.radio'); if (r && r.dataset.k !== ship) { ship = r.dataset.k; renderShip(); } };
+  if (noCvs) { const r = document.querySelector('#ships .radio[data-k="cvs"]'); if (r) { r.style.opacity = .45; r.style.cursor = 'not-allowed'; } }
+  $('#ships').onclick = e => { const r = e.target.closest('.radio'); if (!r) return; if (r.dataset.k === 'cvs' && noCvs) { e.preventDefault(); return toast('購物車有大型商品，無法寄 7-11'); } if (r.dataset.k !== ship) { ship = r.dataset.k; renderShip(); } };
   $('#pays').onclick = e => { const r = e.target.closest('.radio'); if (r) { pay = r.dataset.k; renderPay(); } };
   renderShip();
   $('#fm').addEventListener('input', e => { const f = e.target.closest('.f.err'); if (f) f.classList.remove('err'); if (e.target.id === 'agree') $('#sErr').textContent = ''; });

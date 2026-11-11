@@ -314,7 +314,7 @@ function trow(x) {
   return `<tr class="${x._on ? '' : 'off'}" data-row="${esc(x.i)}"><td><input type="checkbox" class="sel" data-id="${esc(x.i)}"></td><td><img src="${img(x.im && x.im[0], 1)}" loading="lazy" alt=""></td>
     <td><a class="nm ed" href="#edit/${encodeURIComponent(x.i)}" data-id="${esc(x.i)}" title="Ctrl＋點擊可在新分頁編輯">${tag}${esc(x.n)}</a></td><td class="sub">${esc(x.c || '')}</td>
     <td class="pr">${x.p === x.P ? money(x.p) : money(x.p) + '–' + Number(x.P).toLocaleString()}</td>
-    <td>${x._on ? '<span class="tag c">上架中</span>' : '<span class="tag h">已下架</span>'}${x.fs ? ' <span class="tag c">免運</span>' : ''}</td>
+    <td>${x._on ? '<span class="tag c">上架中</span>' : '<span class="tag h">已下架</span>'}${x.fs ? ' <span class="tag c">免運</span>' : ''}${x.nc ? ' <span class="tag h">不寄7-11</span>' : ''}${x.sc != null || x.sh != null ? ' <span class="tag m">運費</span>' : ''}</td>
     <td class="ac"><a class="btn sm ed" href="#edit/${encodeURIComponent(x.i)}" data-id="${esc(x.i)}" title="Ctrl＋點擊可在新分頁編輯">編輯</a><button class="btn sm gray" data-a="tog" data-id="${esc(x.i)}">${x._on ? '下架' : '上架'}</button></td></tr>`;
 }
 const cleanItem = x => { const o = {}; Object.keys(x).forEach(k => { if (k[0] !== '_') o[k] = x[k]; }); return JSON.parse(JSON.stringify(o)); };
@@ -337,12 +337,14 @@ function bulkBar(list) {
         <select id="br" hidden><option value="1">取整到 1 元</option><option value="10">取整到 10 元</option></select></span>
       <span class="grp"><select id="bs"><option value="">庫存不變</option><option value="set">庫存設為</option><option value="ok">改成有貨</option><option value="0">改成售完</option></select><input id="bsv" type="number" inputmode="numeric" hidden></span>
       <button class="btn sm gray" id="bc" data-c="">分類不變</button>
+      <span class="grp"><select id="bsp"><option value="">運費不變</option><option value="sc">7-11 運費設為</option><option value="sh">宅配運費設為</option><option value="nc">不能寄 7-11</option><option value="def">恢復預設運費</option></select><input id="bspv" type="number" inputmode="numeric" placeholder="金額" hidden></span>
       <select id="bf"><option value="">免運不變</option><option value="1">設為免運</option><option value="0">取消免運</option></select>
       <select id="bo"><option value="">上下架不變</option><option value="on">全部上架</option><option value="off">全部下架</option></select>
       <button class="btn sm solid" id="bgo">套用</button><button class="btn sm gray" id="bx">取消選取</button>`;
     document.body.appendChild(bar);
     $('#bp').onchange = () => { const v = $('#bp').value; $('#bpv').hidden = !v; $('#br').hidden = v !== 'pct'; $('#bpv').placeholder = v === 'pct' ? '例：95' : v === 'add' ? '例：-100' : '金額'; $('#bpv').focus(); };
     $('#bs').onchange = () => { $('#bsv').hidden = $('#bs').value !== 'set'; };
+    $('#bsp').onchange = () => { const v = $('#bsp').value; $('#bspv').hidden = !(v === 'sc' || v === 'sh'); if (!$('#bspv').hidden) $('#bspv').focus(); };
     $('#bc').onclick = () => pickCat($('#bc').dataset.c, c => { $('#bc').dataset.c = c; $('#bc').textContent = '分類：' + c; });
     $('#bx').onclick = () => { SEL.clear(); REDRAW && REDRAW(); bulkBar([]); };
   }
@@ -351,19 +353,20 @@ function bulkBar(list) {
 }
 async function applyBulk() {
   const pm = $('#bp').value, pv = Number($('#bpv').value), rd = Number($('#br').value) || 1;
-  const sm = $('#bs').value, sv = Number($('#bsv').value), cat = $('#bc').dataset.c, on = $('#bo').value, fsv = $('#bf').value;
+  const sm = $('#bs').value, sv = Number($('#bsv').value), cat = $('#bc').dataset.c, on = $('#bo').value, fsv = $('#bf').value, spm = $('#bsp').value, spv = Number($('#bspv').value);
+  if ((spm === 'sc' || spm === 'sh') && ($('#bspv').value === '' || spv < 0)) return toast('請輸入運費金額');
   if (pm && (!$('#bpv').value || isNaN(pv))) return toast('請輸入價格數字');
   if (pm === 'pct' && !(pv > 0 && pv <= 200)) return toast('打折請輸入 1～200，例如 95 代表 95 折');
   if (sm === 'set' && ($('#bsv').value === '' || sv < 0)) return toast('請輸入庫存數字');
-  if (!pm && !sm && !cat && !on && !fsv) return toast('請先選要改的項目');
+  if (!pm && !sm && !cat && !on && !fsv && !spm) return toast('請先選要改的項目');
   const all = {}; allItems().forEach(x => all[x.i] = x);
   const ids = [...SEL].filter(i => all[i]);
   const desc = [pm && { set: `價格設為 ${pv}`, add: `價格${pv >= 0 ? '加' : '減'} ${Math.abs(pv)} 元`, pct: `價格打 ${pv} 折（×${pv / 100}）` }[pm],
-    sm && { set: `庫存設為 ${sv}`, ok: '庫存改成有貨', 0: '庫存改成售完' }[sm], cat && `分類改成「${cat}」`, fsv && (fsv === '1' ? '設為免運' : '取消免運'), on && (on === 'on' ? '全部上架' : '全部下架')].filter(Boolean).join('、');
+    sm && { set: `庫存設為 ${sv}`, ok: '庫存改成有貨', 0: '庫存改成售完' }[sm], cat && `分類改成「${cat}」`, fsv && (fsv === '1' ? '設為免運' : '取消免運'), spm && { sc: `7-11 運費設為 ${spv}`, sh: `宅配運費設為 ${spv}`, nc: '不能寄 7-11', def: '恢復預設運費' }[spm], on && (on === 'on' ? '全部上架' : '全部下架')].filter(Boolean).join('、');
   if (!confirm(`要把 ${ids.length} 件商品：\n${desc}\n\n確定嗎？`)) return;
   const btn = $('#bgo'); btn.disabled = true;
   try {
-    const onlyToggle = !pm && !sm && !cat && !fsv;
+    const onlyToggle = !pm && !sm && !cat && !fsv && !spm;
     if (onlyToggle) { btn.textContent = '儲存中…'; await api('toggle_many', { list: ids.map(i => ({ id: i, on: on === 'on', name: all[i].n })) }); }
     else {
       const items = ids.map(i => {
@@ -374,6 +377,7 @@ async function applyBulk() {
           return [v[0], Math.max(1, Math.round(p)), st, v[3]]; });
         if (cat) it.c = cat;
         if (fsv) it.fs = fsv === '1' ? 1 : 0;
+        if (spm === 'sc') { it.sc = spv; it.nc = 0; } else if (spm === 'sh') it.sh = spv; else if (spm === 'nc') { it.nc = 1; it.fs = 0; } else if (spm === 'def') { it.sc = null; it.sh = null; it.nc = 0; }
         return { item: it, on: on ? on === 'on' : x._on, src: BASE[i] ? 'shopee' : 'custom' };
       });
       await saveMany(items, btn);
@@ -460,6 +464,13 @@ async function viewEdit(x) {
     <label class="f"><span>商品名稱 *</span><input id="n" value="${esc(it.n)}" placeholder="例：APEXX 煞車拉桿 勁戰六代"></label>
     <label class="f"><span>分類</span><button type="button" class="pick" id="cbtn"></button></label>
     <label class="f sw" style="margin-top:14px"><input type="checkbox" id="on"${on ? ' checked' : ''}> 上架中（取消勾選＝下架，客人看不到）</label>
+  </div>
+  <div class="box"><h2>物流／運費</h2>
+    <div class="hint" style="margin-top:-4px">留空＝用預設運費（7-11 ${esc(CFG.shipping.cvs ? CFG.shipping.cvs.fee : '')} 元、宅配 ${esc(CFG.shipping.home ? CFG.shipping.home.fee : '')} 元）。大型商品可填比較高的運費；購物車有多樣商品時，取最貴的運費。</div>
+    <div class="row" style="margin-top:10px;gap:10px;flex-wrap:wrap">
+      <label class="f" style="margin:0;flex:1;min-width:130px"><span>7-11 運費</span><input id="sc" type="number" inputmode="numeric" placeholder="預設" value="${it.sc != null ? esc(it.sc) : ''}"${it.nc ? ' disabled' : ''}></label>
+      <label class="f" style="margin:0;flex:1;min-width:130px"><span>宅配運費</span><input id="sh2" type="number" inputmode="numeric" placeholder="預設" value="${it.sh != null ? esc(it.sh) : ''}"></label></div>
+    <label class="f sw" style="margin-top:12px"><input type="checkbox" id="nc"${it.nc ? ' checked' : ''}> 不能寄 7-11（太大、超過超商尺寸）</label>
     <label class="f sw" style="margin-top:8px"><input type="checkbox" id="fs"${it.fs ? ' checked' : ''}> 免運（買這個商品，7-11 整筆免運）</label>
   </div>
   <div class="box"><h2>規格與價格 *</h2>
@@ -512,6 +523,8 @@ async function viewEdit(x) {
   $('#vs').onclick = e => { const b = e.target.closest('[data-rm]'); if (b && vs.length > 1) { vs.splice(+b.dataset.rm, 1); drawVs(); } };
   $('#addv').onclick = () => { vs.push(['', vs[vs.length - 1][1] || '', '', '']); drawVs(); };
   $('#back').onclick = () => viewList();
+  $('#nc').onchange = () => { $('#sc').disabled = $('#nc').checked; if ($('#nc').checked) $('#fs').checked = false; };
+  $('#fs').onchange = () => { if ($('#fs').checked) { $('#nc').checked = false; $('#sc').disabled = false; } };
   let curCat = catList().includes(it.c) ? it.c : '';
   const drawCat = () => { $('#cbtn').innerHTML = `<span>${esc(curCat || '請選擇分類')}</span><span>▾</span>`; $('#cbtn').classList.toggle('empty', !curCat); };
   drawCat();
@@ -519,7 +532,9 @@ async function viewEdit(x) {
 
   $('#save').onclick = async () => {
     const er = $('#er'); er.textContent = '';
-    const item = { i: isNew ? '' : it.i, fs: $('#fs').checked ? 1 : 0, n: $('#n').value.trim(), c: curCat, t: $('#t').value.trim(), im: ims, d: $('#d').value.trim(),
+    const scv = $('#sc').value.trim(), shv = $('#sh2').value.trim();
+    if ((scv && !(Number(scv) >= 0)) || (shv && !(Number(shv) >= 0))) return er.textContent = '運費請填 0 以上的數字，或留空用預設';
+    const item = { i: isNew ? '' : it.i, fs: $('#fs').checked ? 1 : 0, nc: $('#nc').checked ? 1 : 0, sc: scv === '' ? null : Number(scv), sh: shv === '' ? null : Number(shv), n: $('#n').value.trim(), c: curCat, t: $('#t').value.trim(), im: ims, d: $('#d').value.trim(),
       v: vs.filter(v => String(v[0]).trim() || String(v[1]).trim()).map(v => [String(v[0]).trim(), Number(v[1]), v[2] === '' ? '' : Number(v[2]), v[3] || '']) };
     if (!item.n) return er.textContent = '請填寫商品名稱';
     if (!item.im.length) return er.textContent = '請至少上傳 1 張圖片';
@@ -736,7 +751,9 @@ async function viewOrders() {
     let list = j.orders;
     if (OV.f === 'todo') list = list.filter(o => !done.includes(o.status));
     if (OV.f === 'cvs') list = list.filter(o => String(o.ship).includes('7-11'));
-    const fs = [['todo', '處理中'], ['cvs', '7-11'], ['all', '全部']];
+    if (OV.f === 'bad') list = list.filter(o => /未取|退回/.test(String(o.lstat || '')));
+    const nBad = j.orders.filter(o => /未取|退回/.test(String(o.lstat || '')) && o.status !== '取消').length;
+    const fs = [['todo', '處理中'], ['cvs', '7-11'], ['bad', '未取件／退回' + (nBad ? ' ' + nBad : '')], ['all', '全部']];
     const W = wide();
     $('#app').innerHTML = nav('o') + `<div class="chips" style="margin-top:0">${fs.map(([k, n]) => `<button class="chip${OV.f === k ? ' on' : ''}" data-f="${k}">${n}</button>`).join('')}<button class="chip" id="rl">↻ 重新整理</button><span class="hint" style="margin:0 0 0 6px;align-self:center">${list.length} 筆</span></div>
       <div class="list" id="ol">${!list.length ? '<div class="empty">沒有訂單</div>' : W
@@ -767,6 +784,7 @@ async function viewOrders() {
       }
     };
   };
+  const lst = o => { const t = String(o.lstat || ''); return /未取|退回/.test(t) ? `<b style="color:var(--accent)">⚠️ ${esc(t)}</b>` : esc(t); };
   function otr(o) {
     const d = new Date(o.at), dt = isNaN(d) ? '' : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     const cvs = String(o.ship).includes('7-11');
@@ -776,7 +794,7 @@ async function viewOrders() {
       <td class="pr">NT$${Number(o.total).toLocaleString()}</td>
       <td><details><summary>${esc(String(o.detail).split('\n').length)} 項${o.note ? '・有備註' : ''}</summary><pre>${esc(o.detail)}${o.bike ? '\n車款：' + esc(o.bike) : ''}${o.note ? '\n備註：' + esc(o.note) : ''}${o.memo ? '\n處理：' + esc(o.memo) : ''}</pre></details></td>
       <td><select data-no="${esc(o.no)}">${j.statuses.map(st => `<option${st === o.status ? ' selected' : ''}>${esc(st)}</option>`).join('')}</select></td>
-      <td>${cvs && o.code ? `<span class="code">代碼 <b>${esc(o.code)}</b></span> <button class="btn sm gray" data-a="copy" data-no="${esc(o.no)}">複製</button><div class="sub">${esc(o.lstat || '')}</div>` : ''}
+      <td>${cvs && o.code ? `<span class="code">代碼 <b>${esc(o.code)}</b></span> <button class="btn sm gray" data-a="copy" data-no="${esc(o.no)}">複製</button><div class="sub">${lst(o)}</div>` : ''}
         ${cvs && !o.code && o.status !== '取消' ? `<button class="btn sm solid" data-a="cvs" data-no="${esc(o.no)}">建立 7-11 寄件單</button>` : ''}
         ${String(o.pay) === '取貨付款' && !o.blocked && o.status !== '取消' ? `<div style="margin-top:4px"><button class="btn sm gray" data-a="block" data-no="${esc(o.no)}">未取貨→黑名單</button></div>` : ''}</td></tr>`;
   }
@@ -789,7 +807,7 @@ async function viewOrders() {
       <div class="meta">${esc(o.ship)}｜${esc(o.pay)}｜<span class="tot">NT$${Number(o.total).toLocaleString()}</span></div>
       <div class="hint" style="margin:0">${esc(o.where)}${o.last5 ? '　匯款後五碼：' + esc(o.last5) : ''}</div>
       <details><summary>商品明細${o.note ? '・有備註' : ''}</summary><pre>${esc(o.detail)}${o.bike ? '\n車款：' + esc(o.bike) : ''}${o.note ? '\n備註：' + esc(o.note) : ''}${o.memo ? '\n處理：' + esc(o.memo) : ''}</pre></details>
-      ${cvs && o.code ? `<div class="code">寄件代碼 <b>${esc(o.code)}</b><button class="btn sm gray" data-a="copy" data-no="${esc(o.no)}">複製</button><div class="hint" style="margin:2px 0 0">${esc(o.lstat || '')}</div></div>` : ''}
+      ${cvs && o.code ? `<div class="code">寄件代碼 <b>${esc(o.code)}</b><button class="btn sm gray" data-a="copy" data-no="${esc(o.no)}">複製</button><div class="hint" style="margin:2px 0 0">${lst(o)}</div></div>` : ''}
       <div class="acts2">${cvs && !o.code && o.status !== '取消' ? `<button class="btn sm solid" data-a="cvs" data-no="${esc(o.no)}">建立 7-11 寄件單</button>` : ''}
         ${String(o.pay) === '取貨付款' && !o.blocked && o.status !== '取消' ? `<button class="btn sm gray" data-a="block" data-no="${esc(o.no)}">未取貨→加黑名單</button>` : ''}</div></div>`;
   }
