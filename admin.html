@@ -331,12 +331,23 @@ function viewList(keep) {   // keep = 只更新下面清單，搜尋框不重畫
       e.preventDefault(); const x = list.find(y => y.i === cb.dataset.cat); if (!x) return;
       return pickCat(x.c, async c => {
         if (c === x.c) return;
+        const oldC = x.c, oldRow = ROWS[x.i];
+        // 先在畫面上改好，再排隊一筆一筆存（點很快也不會漏）
+        const it = cleanItem(x); it.c = c; x.c = c;
+        ROWS[x.i] = { ...(oldRow || {}), id: x.i, on: x._on, t: (oldRow && oldRow.t) || Date.now(), item: it };
         cb.classList.add('saving'); cb.textContent = c + ' 儲存中…';
-        try {
+        queueSave(async () => {
           if (!catList().includes(c)) { const cats = [...CFG.categories]; cats.splice(cats.length - 1, 0, { n: c, k: [] }); await saveConfig({ ...CFG, categories: cats }, false); }
-          const it = cleanItem(x); it.c = c; await api('save', { item: it, on: x._on, src: BASE[x.i] ? 'shopee' : 'custom' });
-          await reloadRowsQuiet(); x.c = c; cb.classList.remove('saving'); cb.textContent = c + ' ✎'; toast('已改成「' + c + '」');
-        } catch (err) { cb.classList.remove('saving'); cb.textContent = (x.c || '未分類') + ' ✎'; alert(err.message); }
+          await api('save', { item: it, on: x._on, src: BASE[x.i] ? 'shopee' : 'custom' });
+        }).then(() => {
+          const el = document.querySelector(`.catb[data-cat="${CSS.escape(x.i)}"]`);
+          if (el && x.c === c) { el.classList.remove('saving'); el.textContent = c + ' ✎'; }
+        }).catch(err => {
+          if (x.c === c) { x.c = oldC; if (oldRow) ROWS[x.i] = oldRow; else delete ROWS[x.i]; }
+          const el = document.querySelector(`.catb[data-cat="${CSS.escape(x.i)}"]`);
+          if (el) { el.classList.remove('saving'); el.textContent = (x.c || '未分類') + ' ✎'; }
+          alert('「' + x.n.slice(0, 20) + '」分類沒存成功：' + err.message);
+        });
       });
     }
     const ed = e.target.closest('a.ed');
@@ -512,6 +523,22 @@ function viewQuick(list, cnt, tabs) {
     } catch (err) { alert(err.message); b.disabled = false; dirty(); }
   };
 }
+/* 儲存排隊：一筆存完再存下一筆，右下角顯示還有幾筆沒存完；沒存完就關網頁會先提醒 */
+const SAVEQ = { n: 0, p: Promise.resolve() };
+function queueSave(fn) {
+  SAVEQ.n++; drawQ();
+  const r = SAVEQ.p.then(fn);
+  SAVEQ.p = r.catch(() => {}).then(async () => { SAVEQ.n--; if (!SAVEQ.n) { try { await reloadRowsQuiet(); } catch (e) {} } drawQ(); });
+  return r;
+}
+function drawQ() {
+  let el = document.getElementById('saveq');
+  if (!el) { el = document.createElement('div'); el.id = 'saveq'; el.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:60;background:#16181d;color:#fff;border-radius:999px;padding:9px 16px;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.2)'; document.body.appendChild(el); }
+  el.hidden = !SAVEQ.n; el.textContent = `儲存中，還有 ${SAVEQ.n} 筆…`;
+  if (!SAVEQ.n && drawQ.was) toast('分類都存好了');
+  drawQ.was = SAVEQ.n;
+}
+window.addEventListener('beforeunload', e => { if (SAVEQ.n) { e.preventDefault(); e.returnValue = ''; } });
 async function reloadRowsQuiet() { const j = await api('list'); ROWS = {}; j.rows.forEach(r => ROWS[r.id] = r); }
 
 /* ---------- 編輯 / 新增 ---------- */
@@ -764,7 +791,7 @@ function pickProducts(ids, done) {
   draw(); $('#pq').oninput = draw; $('#px').onclick = close;
   wrap.onclick = e => { if (e.target === wrap) close(); };
   $('#pl').onclick = e => { const b = e.target.closest('button[data-id]'); if (!b) return; const id = b.dataset.id, k = ids.indexOf(id); if (k < 0) ids.push(id); else ids.splice(k, 1); draw(); };
-  setTimeout(() => $('#pq').focus(), 50);
+  setTimeout(() => { const q = $('#pq'); if (q) q.focus(); }, 50);
 }
 
 /* ---------- 左上角 Logo、回首頁 ---------- */
@@ -1008,7 +1035,7 @@ function pickCat(cur, done) {
     if (b.dataset.new) { done(b.dataset.new); toast('儲存商品時會一起新增這個分類'); } else done(b.dataset.c);
     close();
   };
-  setTimeout(() => $('#pq').focus(), 50);
+  setTimeout(() => { const q = $('#pq'); if (q) q.focus(); }, 50);
 }
 
 const SYM_LIST_URL = 'https://www.fartrust.com.tw/online_s2/index_own.asp?s=S01800402&own=Y';
