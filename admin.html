@@ -107,7 +107,8 @@ tr.sel td{background:#fff5f3!important}
 .it.sel{outline:2px solid var(--accent)}
 input.sel{width:18px;height:18px;accent-color:var(--accent);margin:0;cursor:pointer}
 .qe input{width:100%;padding:6px 8px;font-size:14px}
-.qe input.chg{background:#fff7d6;border-color:#e0b100}
+.qe input.chg,.qe select.chg{background:#fff7d6;border-color:#e0b100}
+.qe select{width:100%;padding:6px 8px;font-size:13.5px}
 .qe td.pn{max-width:380px;line-height:1.35}
 .qbar{position:sticky;bottom:0;background:rgba(244,244,242,.96);padding:10px 0;display:flex;gap:10px;z-index:5}
 /* ---------- 首頁區塊 ---------- */
@@ -390,22 +391,25 @@ async function applyBulk() {
 function viewQuick(list, cnt, tabs) {
   bulkBar([]); REDRAW = null;
   const CH = {};   // id -> 改過的規格陣列
+  const CC = {};   // id -> 改過的分類
+  const copt = c => catList().map(n => `<option${n === c ? ' selected' : ''}>${esc(n)}</option>`).join('');
   const show = list.slice(0, view.shown);
   const rows = show.map(x => x.v.map((v, k) => `<tr data-row="${esc(x.i)}">
-      ${k === 0 ? `<td rowspan="${x.v.length}"><img src="${img(x.im && x.im[0], 1)}" loading="lazy" alt=""></td><td rowspan="${x.v.length}" class="pn">${esc(x.n)}<div class="sub">${esc(x.c || '')}${x._on ? '' : '・已下架'}</div></td>` : ''}
+      ${k === 0 ? `<td rowspan="${x.v.length}"><img src="${img(x.im && x.im[0], 1)}" loading="lazy" alt=""></td><td rowspan="${x.v.length}" class="pn">${esc(x.n)}${x._on ? '' : '<div class="sub">已下架</div>'}</td><td rowspan="${x.v.length}" style="width:170px"><select data-cat="${esc(x.i)}">${copt(x.c)}</select></td>` : ''}
       <td class="sub">${esc(v[0] || '（單一規格）')}</td>
       <td style="width:120px"><input data-id="${esc(x.i)}" data-k="${k}" data-f="1" type="number" inputmode="numeric" value="${v[1]}"></td>
       <td style="width:100px"><input data-id="${esc(x.i)}" data-k="${k}" data-f="2" type="number" inputmode="numeric" value="${v[2]}"></td></tr>`).join('')).join('');
   $('#app').innerHTML = nav('p') + `<div class="tbar"><input id="q" type="search" placeholder="搜尋商品名稱" value="${esc(view.q)}">
       <select id="cf"><option value="">全部分類</option>${catList().map(c => `<option${c === view.cat ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
-    <div class="box" style="padding:12px 14px"><b>快速編輯</b>　<span class="hint" style="margin:0">直接改價格和庫存，改過的格子會變黃色。按 Enter 跳到下一列。庫存 0＝售完。</span></div>
-    ${show.length ? `<table class="tbl qe"><thead><tr><th></th><th>商品</th><th>規格</th><th>價格</th><th>庫存</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="empty">沒有商品</div>'}
+    <div class="box" style="padding:12px 14px"><b>快速編輯</b>　<span class="hint" style="margin:0">直接改分類、價格、庫存，改過的格子會變黃色。按 Enter 跳到下一列。分類欄標題的選單可以把這頁全部改成同一個分類。</span></div>
+    ${show.length ? `<table class="tbl qe"><thead><tr><th></th><th>商品</th><th>分類<br><select id="callq" style="margin-top:4px;font-weight:400"><option value="">這頁全部改成…</option>${copt('')}</select></th><th>規格</th><th>價格</th><th>庫存</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="empty">沒有商品</div>'}
     ${list.length > view.shown ? `<button class="more" id="more">再載入 ${Math.min(60, list.length - view.shown)} 件（共 ${list.length} 件）</button>` : ''}
     <div class="qbar"><button class="btn gray" id="qx" style="flex:1">結束快速編輯</button><button class="btn solid" id="qs" style="flex:2" disabled>儲存變更</button></div>`;
   bindNav();
   const byId = {}; show.forEach(x => byId[x.i] = x);
-  const dirty = () => { const n = Object.keys(CH).length; $('#qs').disabled = !n; $('#qs').textContent = n ? `儲存變更（${n} 件商品）` : '儲存變更'; };
-  const leave = fn => { if (Object.keys(CH).length && !confirm('還有沒儲存的修改，確定離開？')) return; fn(); };
+  const changedIds = () => [...new Set(Object.keys(CH).concat(Object.keys(CC)))];
+  const dirty = () => { const n = changedIds().length; $('#qs').disabled = !n; $('#qs').textContent = n ? `儲存變更（${n} 件商品）` : '儲存變更'; };
+  const leave = fn => { if (changedIds().length && !confirm('還有沒儲存的修改，確定離開？')) return; fn(); };
   let qt, comp = false; const qq = $('#q');
   const run = () => { clearTimeout(qt); qt = setTimeout(() => leave(() => { const v = qq.value.trim(); if (v === view.q) return; view.q = v; view.shown = 60; viewList(); const n = $('#q'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }), 500); };
   qq.addEventListener('compositionstart', () => { comp = true; }); qq.addEventListener('compositionend', () => { comp = false; run(); });
@@ -425,6 +429,9 @@ function viewQuick(list, cnt, tabs) {
       i.classList.toggle('chg', Number(i.value) !== x.v[k][f] || i.value === '');
       dirty();
     };
+    const setCat = (sel, v) => { const x = byId[sel.dataset.cat]; sel.value = v; if (v === x.c) delete CC[x.i]; else CC[x.i] = v; sel.classList.toggle('chg', v !== x.c); };
+    tb.onchange = e => { const sel = e.target.closest('select[data-cat]'); if (sel) { setCat(sel, sel.value); dirty(); } };
+    if ($('#callq')) $('#callq').onchange = e => { const v = e.target.value; if (!v) return; tb.querySelectorAll('select[data-cat]').forEach(sel => setCat(sel, v)); e.target.value = ''; dirty(); toast(`這頁 ${show.length} 件都改成「${v}」，記得按儲存`); };
     tb.onkeydown = e => {
       if (e.key !== 'Enter') return; e.preventDefault();
       const ins = [...tb.querySelectorAll(`input[data-f="${e.target.dataset.f}"]`)], n = ins.indexOf(e.target);
@@ -432,11 +439,11 @@ function viewQuick(list, cnt, tabs) {
     };
   }
   $('#qs').onclick = async () => {
-    const ids = Object.keys(CH);
-    for (const i of ids) if (CH[i].some(v => !(Number(v[1]) > 0))) return toast('「' + byId[i].n.slice(0, 20) + '」價格要大於 0');
+    const ids = changedIds();
+    for (const i of ids) if (CH[i] && CH[i].some(v => !(Number(v[1]) > 0))) return toast('「' + byId[i].n.slice(0, 20) + '」價格要大於 0');
     const b = $('#qs'); b.disabled = true;
     try {
-      await saveMany(ids.map(i => { const it = cleanItem(byId[i]); it.v = CH[i].map(v => [v[0], Number(v[1]), v[2] === '' ? '' : Number(v[2]), v[3]]); return { item: it, on: byId[i]._on, src: BASE[i] ? 'shopee' : 'custom' }; }), b);
+      await saveMany(ids.map(i => { const it = cleanItem(byId[i]); if (CH[i]) it.v = CH[i].map(v => [v[0], Number(v[1]), v[2] === '' ? '' : Number(v[2]), v[3]]); if (CC[i]) it.c = CC[i]; return { item: it, on: byId[i]._on, src: BASE[i] ? 'shopee' : 'custom' }; }), b);
       await reloadRowsQuiet(); toast(`已儲存 ${ids.length} 件，網站約 5 分鐘內更新`); viewList();
     } catch (err) { alert(err.message); b.disabled = false; dirty(); }
   };
