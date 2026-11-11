@@ -252,20 +252,23 @@ function viewLogin(msg) {
 
 // 上次的資料先存在這台電腦，打開時馬上顯示，背景再跟 GAS 對一次最新的
 function setRows(rows) { ROWS = {}; rows.forEach(r => ROWS[r.id] = r); ls.set('wade_admin_rows', rows); }
-function firstView() {
-  const m = location.hash.match(/^#edit\/(.+)$/);
+function firstView(h) {
+  const m = (h || location.hash).match(/^#edit\/(.+)$/);
   const it = m && allItems().find(x => x.i === decodeURIComponent(m[1]));
   it ? viewEdit(it) : viewList();
 }
 async function loadRows() {
-  const cached = ls.get('wade_admin_rows', null);
-  if (cached) { ROWS = {}; cached.forEach(r => ROWS[r.id] = r); firstView(); }
+  const cached = ls.get('wade_admin_rows', null), h0 = location.hash;
+  const want = h0.match(/^#edit\/(.+)$/);
+  if (cached) { ROWS = {}; cached.forEach(r => ROWS[r.id] = r); }
+  // 要直接開某個商品、但上次的資料裡還沒有它（剛新增的）→ 等最新資料
+  if (cached && !(want && !allItems().some(x => x.i === decodeURIComponent(want[1])))) firstView(h0);
   else $('#app').innerHTML = '<div class="empty">讀取商品資料…</div>';
   try {
     const j = await (LISTP || api('list')); LISTP = null;
     const same = cached && JSON.stringify(cached) === JSON.stringify(j.rows);
     setRows(j.rows);
-    if (!cached) return firstView();
+    if (!cached || (!EDITING && want)) return firstView(h0);
     // 資料有變，而且你沒在編輯／打字時，才重畫清單（停在原本的頁和位置）
     const typing = document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
     if (!same && !EDITING && $('#lv') && !typing && !SAVEQ.n && !document.querySelector('.modal, #pl')) { const y = scrollY; viewList(); scrollTo(0, y); }
@@ -623,6 +626,11 @@ async function viewEdit(x, fromHistory) {
     <button class="btn sm" style="margin-top:10px" id="tog2">＋ 加第二個選單</button>
     <div id="vgrid"></div>
     <div class="hint">價格留空＝這個組合不賣（客人選不到）。庫存留空＝有貨；填 0＝售完。</div></div>
+  <div class="box"><h2>加購項目（選填）</h2>
+    <div class="hint" style="margin-top:0">客人可以複選，價格會加在上面選的商品上。例：BREMBO 對四卡鉗 ＋5800、金內管 ＋1000。</div>
+    <div class="vg h" style="grid-template-columns:minmax(0,1fr) 92px 32px"><span>加購名稱</span><span>加價</span><span></span></div>
+    <div id="ads"></div>
+    <button class="btn sm" style="margin-top:10px" id="adda">＋ 新增加購項目</button></div>
   </div><div>
   <div class="box"><h2>商品圖片 *</h2><div class="imgs" id="imgs"></div><div class="hint">第一張是封面。點「←」可往前移。照片會自動縮小再上傳（電腦可一次選多張）。</div></div>
   <div class="box"><h2>商品說明</h2><textarea id="d" rows="7" placeholder="特色、適用車種、注意事項…">${esc(it.d || '')}</textarea></div>
@@ -700,6 +708,15 @@ async function viewEdit(x, fromHistory) {
     const b = e.target.closest('[data-rmo]'); if (!b) return;
     const list = b.dataset.rmo === '1' ? o1 : o2, k = list.indexOf(b.dataset.o); if (k >= 0) list.splice(k, 1); drawVs();
   };
+  const ads = (it.ad || []).map(a => [...a]);
+  function drawAds() {
+    $('#ads').innerHTML = ads.map((a, k) => `<div class="vg" style="grid-template-columns:minmax(0,1fr) 92px 32px"><input data-a="${k}" data-f="0" value="${esc(a[0])}" placeholder="例：BREMBO 對四卡鉗">
+      <input data-a="${k}" data-f="1" type="number" inputmode="numeric" value="${esc(a[1])}" placeholder="加價"><button class="del" data-ra="${k}">✕</button></div>`).join('') || '<div class="hint">沒有加購項目</div>';
+  }
+  drawAds();
+  $('#ads').oninput = e => { const i = e.target.closest('input[data-a]'); if (i) ads[+i.dataset.a][+i.dataset.f] = i.value; };
+  $('#ads').onclick = e => { const b = e.target.closest('[data-ra]'); if (b) { ads.splice(+b.dataset.ra, 1); drawAds(); } };
+  $('#adda').onclick = () => { ads.push(['', '', '']); drawAds(); $('#ads').querySelector(`input[data-a="${ads.length - 1}"]`).focus(); };
   $('#vgrid').oninput = e => {
     const i = e.target;
     if (i.dataset.c) { cell[i.dataset.c][+i.dataset.f] = i.value; return; }
@@ -725,6 +742,10 @@ async function viewEdit(x, fromHistory) {
       v: combos().filter(([x, y]) => String(cell[key(x, y)][0]).trim() !== '').map(([x, y]) => { const c = cell[key(x, y)];
         return [y != null ? x + ',' + y : x, Number(c[0]), String(c[1]).trim() === '' ? '' : Number(c[1]), c[2] || '']; }) };
     if (use2 && o2.length && !o1.length) return er.textContent = '請先填選單 1 的選項';
+    item.ad = ads.filter(a => String(a[0]).trim() || String(a[1]).trim()).map(a => [String(a[0]).trim(), a[1] === '' ? NaN : Number(a[1]), a[2] || '']);
+    if (item.ad.some(a => !a[0])) return er.textContent = '加購項目要填名稱';
+    if (item.ad.some(a => !(a[1] >= 0))) return er.textContent = '加購項目要填加價（0 以上的數字）';
+    if (!item.ad.length) delete item.ad;
     if (!item.n) return er.textContent = '請填寫商品名稱';
     if (!item.im.length) return er.textContent = '請至少上傳 1 張圖片';
     if (!item.v.length) return er.textContent = '請至少填一個價格';

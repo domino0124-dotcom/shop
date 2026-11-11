@@ -109,6 +109,11 @@ select.sort{font:inherit;font-size:13px;border:1px solid var(--line);background:
 .info h1{font-size:18px;line-height:1.45;margin:0 0 8px}
 .info .price{font-size:24px}
 .tier{margin-top:16px}
+.adds{display:grid;gap:6px}
+.add{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13.5px;cursor:pointer;background:#fff}
+.add input{width:18px;height:18px;margin:0;flex:none;accent-color:var(--accent)}
+.add.on{border-color:var(--accent);background:#fff6f4}
+.add .ap{margin-left:auto;white-space:nowrap;color:var(--accent);font-weight:600}
 .tier h3{font-size:13px;color:var(--ink2);margin:0 0 8px;font-weight:600}
 .opts{display:flex;flex-wrap:wrap;gap:8px}
 .opt{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 11px;font-size:13.5px;text-align:left;line-height:1.35}
@@ -313,17 +318,24 @@ function loadDesc() { return descP || (descP = fetch('desc.json').then(r => r.js
 
 /* ---------- cart ---------- */
 function findVar(p, vid) { return p && p.v.find(v => v[3] === vid); }
-function cleanCart() { cart = cart.filter(c => findVar(BYID[c.i], c.v) && !BYID[c.i].lk); saveCart(); }
+// 加購：p.ad = [[名稱, 價格, id], ...]；購物車 c.a = 勾選的加購 id
+const findAdd = (p, id) => p && (p.ad || []).find(a => a[2] === id);
+function cleanCart() { cart = cart.filter(c => findVar(BYID[c.i], c.v) && !BYID[c.i].lk && (c.a || []).every(id => findAdd(BYID[c.i], id))); saveCart(); }
 function saveCart() { store.set('wade_cart', cart); badge(); }
 function badge() { const n = cart.reduce((a, c) => a + c.q, 0); $('#badge').textContent = n ? (n > 99 ? '99+' : n) : ''; }
 function maxQty(v) { return Math.max(1, Math.min(99, v[2] || 99)); }
-function addCart(i, vid, q) {
-  const v = findVar(BYID[i], vid); const ex = cart.find(c => c.i === i && c.v === vid);
-  if (ex) ex.q = Math.min(maxQty(v), ex.q + q); else cart.push({ i, v: vid, q: Math.min(maxQty(v), q) });
+function addCart(i, vid, q, adds) {
+  const a = [...(adds || [])].sort(), ak = a.join('|');
+  const v = findVar(BYID[i], vid); const ex = cart.find(c => c.i === i && c.v === vid && (c.a || []).join('|') === ak);
+  if (ex) ex.q = Math.min(maxQty(v), ex.q + q); else cart.push(a.length ? { i, v: vid, q: Math.min(maxQty(v), q), a } : { i, v: vid, q: Math.min(maxQty(v), q) });
   saveCart();
 }
 function cartLines() {
-  return cart.map(c => { const p = BYID[c.i], v = findVar(p, c.v); return { c, p, v, sub: v[1] * c.q }; });
+  return cart.map(c => {
+    const p = BYID[c.i], v = findVar(p, c.v), ad = (p.ad || []).filter(x => (c.a || []).includes(x[2]));   // 照後台排的順序
+    const unit = v[1] + ad.reduce((s, a) => s + a[1], 0);
+    return { c, p, v, ad, unit, sub: unit * c.q, vn: [v[0] ? vName(v[0]) : '', ad.length ? '加購：' + ad.map(a => a[0]).join('、') : ''].filter(Boolean).join('｜') };
+  });
 }
 // 商品設成「免運」：購物車有它（或全部都是，看 config.freeShip.rule）且取貨方式在 freeShip.ships 內 → 運費 0
 function fsHit(method) {
@@ -482,6 +494,7 @@ function viewProduct(p) {
       ${p.nc || p.sc != null || p.sh != null ? `<div class="stock" style="margin-top:6px">🚚 運費：${p.nc ? '不能寄 7-11' : (p.fs ? '' : '7-11 ' + money(p.sc != null ? p.sc : CFG.shipping.cvs.fee))}${p.nc || !p.fs ? '｜' : ''}宅配 ${money(p.sh != null ? p.sh : CFG.shipping.home.fee)}${CFG.shipping.home.feeFrom && p.sh == null ? ' 起' : ''}</div>` : ''}
       ${single ? '' : `<div class="tier"><h3>${esc(p.t || '規格')}</h3><div class="opts" id="o1">${t1.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>
       ${two ? `<div class="tier"><h3>${esc(p.t2 || '選項')}</h3><div class="opts" id="o2">${t2.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}`}
+      ${p.ad && p.ad.length && !p.lk ? `<div class="tier"><h3>加購（可複選，價格加在上面的商品）</h3><div class="adds" id="adds">${p.ad.map(a => `<label class="add"><input type="checkbox" value="${esc(a[2])}"><span>${esc(a[0])}</span><span class="ap">＋${money(a[1])}</span></label>`).join('')}</div></div>` : ''}
       ${p.lk ? `<a class="btn solid block" style="display:grid;place-items:center;text-decoration:none;margin-top:16px" href="${esc(p.lk)}" target="_blank" rel="noopener">${esc(p.lkt || '前往了解')} ›</a>
       <div class="tip" style="color:var(--ink2);background:#f3f4f6">這個商品請透過上方連結辦理，不能加入購物車。有任何問題歡迎 LINE 詢問。</div>` : ''}
       <div class="row"${p.lk ? ' hidden' : ''}><span class="lab">數量</span><div class="qty"><button id="qm">−</button><input id="qn" type="number" inputmode="numeric" value="1" min="1"><button id="qp">＋</button></div><span class="stock" id="stk"></span></div>
@@ -515,13 +528,16 @@ function viewProduct(p) {
   function refresh() {
     document.querySelectorAll('#o1 .opt').forEach(b => { const o = b.dataset.o; b.classList.toggle('on', o === sel1); b.disabled = !stockOf(o, two ? sel2 : null); });
     document.querySelectorAll('#o2 .opt').forEach(b => { const o = b.dataset.o; b.classList.toggle('on', o === sel2); b.disabled = !stockOf(sel1, o); });
-    const v = cur();
-    $('#pp').textContent = v ? money(v[1]) : priceTxt(p);
+    const v = cur(), adSel = adds(), adSum = adSel.reduce((s, a) => s + a[1], 0);
+    $('#pp').textContent = v ? money(v[1] + adSum) : priceTxt(p) + (adSum ? '（＋加購 ' + money(adSum) + '）' : '');
+    document.querySelectorAll('#adds .add').forEach(l => l.classList.toggle('on', l.querySelector('input').checked));
     const ok = !!(v && v[2] > 0);
     $('#add').disabled = $('#buy').disabled = !!p.so || (v !== null && !ok);
     $('#stk').textContent = p.so ? '已售完' : v ? (v[2] > 0 ? '' : '此規格已售完') : '';
     if (v) { qty = Math.min(qty, maxQty(v)); $('#qn').value = qty; }
   }
+  const adds = () => [...document.querySelectorAll('#adds input:checked')].map(i => findAdd(p, i.value)).filter(Boolean);
+  if ($('#adds')) $('#adds').onchange = () => refresh();
   const o1 = $('#o1'), o2 = $('#o2');
   if (o1) o1.onclick = e => { const b = e.target.closest('.opt'); if (!b || b.disabled) return; sel1 = sel1 === b.dataset.o ? null : b.dataset.o; if (sel1) showOptImg(sel1); refresh(); };
   if (o2) o2.onclick = e => { const b = e.target.closest('.opt'); if (!b || b.disabled) return; sel2 = sel2 === b.dataset.o ? null : b.dataset.o; refresh(); };
@@ -533,11 +549,11 @@ function viewProduct(p) {
     const v = cur();
     if (!v) { toast('請先選擇' + (two ? (sel1 === null ? (p.t || '規格') : (p.t2 || '選項')) : (p.t || '規格'))); (o1 || o2).scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
     if (v[2] <= 0) return toast('此規格已售完');
-    addCart(p.i, v[3], qty);
+    addCart(p.i, v[3], qty, adds().map(a => a[2]));
     if (buy) location.hash = '#/cart'; else toast('已加入購物車');
   }
   $('#add').onclick = () => go(false); $('#buy').onclick = () => go(true);
-  $('#ask').onclick = () => { const v = cur(); $('#ask').href = lineMsg(`我想問這個商品：\n${p.n}${v && v[0] ? '\n規格：' + vName(v[0]) : ''}\n${location.origin + location.pathname}#/p/${p.i}`); };
+  $('#ask').onclick = () => { const v = cur(); $('#ask').href = lineMsg(`我想問這個商品：\n${p.n}${v && v[0] ? '\n規格：' + vName(v[0]) : ''}${adds().length ? '\n加購：' + adds().map(a => a[0]).join('、') : ''}\n${location.origin + location.pathname}#/p/${p.i}`); };
   refresh();
 
   loadDesc().then(() => {
@@ -560,7 +576,7 @@ function viewCart() {
   $('#app').innerHTML = `<div class="bar"><h1>購物車<small>${L.length} 項</small></h1></div>
   <div class="lay"><div class="box">${L.map((l, k) => `<div class="ci">
       <a href="#/p/${l.p.i}"><img src="${img((l.p.oi && l.p.oi[(l.v[0] || '').split(',')[0].trim()]) || l.p.im[0], 1)}" alt=""></a>
-      <div><a class="nm" href="#/p/${l.p.i}">${esc(l.p.n)}</a>${l.v[0] ? `<div class="vn">${esc(vName(l.v[0]))}</div>` : ''}
+      <div><a class="nm" href="#/p/${l.p.i}">${esc(l.p.n)}</a>${l.vn ? `<div class="vn">${esc(l.vn)}</div>` : ''}
         <div class="bt"><div class="qty"><button data-k="${k}" data-d="-1">−</button><input data-k="${k}" type="number" inputmode="numeric" value="${l.c.q}"><button data-k="${k}" data-d="1">＋</button></div>
         <span class="price">${money(l.sub)}</span></div>
         <button class="del" data-del="${k}">刪除</button></div></div>`).join('')}</div>
@@ -604,7 +620,7 @@ function viewCheckout() {
       <input class="hp" name="website" tabindex="-1" autocomplete="off">
     </div></div>
     <div><div class="box"><h2>訂單明細</h2>
-      ${L.map(l => `<div class="sum" style="font-size:13.5px;gap:10px"><span>${esc(l.p.n)}${l.v[0] ? '（' + esc(vName(l.v[0])) + '）' : ''} ×${l.c.q}</span><span style="white-space:nowrap">${money(l.sub)}</span></div>`).join('')}
+      ${L.map(l => `<div class="sum" style="font-size:13.5px;gap:10px"><span>${esc(l.p.n)}${l.vn ? '（' + esc(l.vn) + '）' : ''} ×${l.c.q}</span><span style="white-space:nowrap">${money(l.sub)}</span></div>`).join('')}
       <div class="sum" style="border-top:1px solid var(--line);margin-top:8px;padding-top:8px"><span>商品小計</span><span>${money(sub)}</span></div>
       <div class="sum"><span>運費</span><span id="fee"></span></div>
       <div class="sum total"><span>總計</span><span id="tot"></span></div>
@@ -682,7 +698,7 @@ function viewCheckout() {
     const order = {
       action: 'shop_order', ship, pay,
       customer: { name: fd.name, phone: fd.phone, lineId: fd.lineId, email: fd.email, bike: fd.bike, address: fd.address || '', cvsStore: fd.cvsStore || '', cvsId: fd.cvsId || '' },
-      note: fd.note, items: cart.map(c => ({ i: c.i, v: c.v, q: c.q })), clientTotal: sub + shipFee(ship, sub)
+      note: fd.note, items: cart.map(c => c.a && c.a.length ? { i: c.i, v: c.v, q: c.q, a: c.a } : { i: c.i, v: c.v, q: c.q }), clientTotal: sub + shipFee(ship, sub)
     };
     const btn = $('#submit'); btn.disabled = true; btn.textContent = '送出中…'; $('#sErr').textContent = '';
     try {
@@ -695,7 +711,7 @@ function viewCheckout() {
         res = await r.json();
       }
       if (!res.ok) throw new Error(res.error || '送出失敗');
-      lastOrder = { ...res, ship, pay, name: fd.name, at: Date.now(), lines: cartLines().map(l => [l.p.n, l.v[0], l.c.q, l.sub]) };
+      lastOrder = { ...res, ship, pay, name: fd.name, at: Date.now(), lines: cartLines().map(l => [l.p.n, l.vn, l.c.q, l.sub]) };
       store.set('wade_last_order', lastOrder);
       cart = []; saveCart();
       location.hash = '#/done';
