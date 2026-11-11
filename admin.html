@@ -542,6 +542,8 @@ async function viewEdit(x, fromHistory) {
     ${isShopee ? '<div class="hint" style="margin-top:-6px">修改只會影響網站，不會改到蝦皮</div>' : ''}
     <label class="f"><span>商品名稱 *</span><input id="n" value="${esc(it.n)}" placeholder="例：APEXX 煞車拉桿 勁戰六代"></label>
     <label class="f"><span>分類</span><button type="button" class="pick" id="cbtn"></button></label>
+    <label class="f"><span>外部連結（選填：填了就不能加入購物車，商品頁改成一顆按鈕連過去，例如分期申辦頁）</span><input id="lk" type="url" placeholder="https://…" value="${esc(it.lk || '')}"></label>
+    <label class="f"><span>按鈕文字</span><input id="lkt" placeholder="線上申辦分期" value="${esc(it.lkt || '')}"></label>
     <label class="f sw" style="margin-top:14px"><input type="checkbox" id="on"${on ? ' checked' : ''}> 上架中（取消勾選＝下架，客人看不到）</label>
   </div>
   <div class="box"><h2>物流／運費</h2>
@@ -613,7 +615,9 @@ async function viewEdit(x, fromHistory) {
     const er = $('#er'); er.textContent = '';
     const scv = $('#sc').value.trim(), shv = $('#sh2').value.trim();
     if ((scv && !(Number(scv) >= 0)) || (shv && !(Number(shv) >= 0))) return er.textContent = '運費請填 0 以上的數字，或留空用預設';
-    const item = { i: isNew ? '' : it.i, fs: $('#fs').checked ? 1 : 0, nc: $('#nc').checked ? 1 : 0, sc: scv === '' ? null : Number(scv), sh: shv === '' ? null : Number(shv), n: $('#n').value.trim(), c: curCat, t: $('#t').value.trim(), im: ims, d: $('#d').value.trim(),
+    const lkv = $('#lk').value.trim();
+    if (lkv && !/^https?:\/\//.test(lkv)) return er.textContent = '外部連結要用 https:// 開頭';
+    const item = { i: isNew ? '' : it.i, lk: lkv, lkt: $('#lkt').value.trim(), fs: $('#fs').checked ? 1 : 0, nc: $('#nc').checked ? 1 : 0, sc: scv === '' ? null : Number(scv), sh: shv === '' ? null : Number(shv), n: $('#n').value.trim(), c: curCat, t: $('#t').value.trim(), im: ims, d: $('#d').value.trim(),
       v: vs.filter(v => String(v[0]).trim() || String(v[1]).trim()).map(v => [String(v[0]).trim(), Number(v[1]), v[2] === '' ? '' : Number(v[2]), v[3] || '']) };
     if (!item.n) return er.textContent = '請填寫商品名稱';
     if (!item.im.length) return er.textContent = '請至少上傳 1 張圖片';
@@ -723,7 +727,10 @@ function viewSettings() {
     <label class="f"><span>店名（顯示在 Logo 旁邊）</span><input id="sn" value="${esc(CFG.shopName || '')}"></label>
     <label class="f sw" style="margin-top:12px"><input type="checkbox" id="st"${CFG.hideName ? '' : ' checked'}> 在 Logo 旁顯示店名（Logo 本身已經有字的話可以取消）</label>
     <div class="err" id="se"></div>
-    <button class="btn solid" style="width:100%;margin-top:14px" id="ss">儲存</button></div>`;
+    <button class="btn solid" style="width:100%;margin-top:14px" id="ss">儲存</button></div>
+  <div class="box"><h2>三陽新車（遠信線上分期）</h2>
+    <div class="hint" style="margin-top:-4px">把遠信線上購車的 ${SYM_MODELS.length} 台車款建成商品，放進「${esc(symCatName())}」分類。商品頁會顯示「線上申辦分期」按鈕，不能加入購物車。價格有變時再按一次就會更新（你自己改過的說明、照片不會被蓋掉）。</div>
+    <button class="btn" style="width:100%;margin-top:12px" id="symi">匯入／更新三陽車款（${SYM_MODELS.length} 台）</button><div class="err" id="syme"></div></div>`;
   bindNav();
   const prev = () => { $('#lp').innerHTML = (logo ? `<img src="${esc(logo)}" alt="">` : '<b style="display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;background:var(--accent)">W</b>') + ($('#st') && !$('#st').checked ? '' : `<span>${esc(($('#sn') && $('#sn').value) || CFG.shopName || '')}</span>`); };
   prev(); $('#sn').oninput = prev; $('#st').onchange = prev;
@@ -734,6 +741,21 @@ function viewSettings() {
     try { const j = await api('upload', { mime: 'image/png', data: await shrink(f, 600, 'image/png') }); logo = j.url + '=s600'; }
     catch (err) { toast('上傳失敗：' + err.message); }
     prev();
+  };
+  $('#symi').onclick = async () => {
+    if (!confirm(`匯入 ${SYM_MODELS.length} 台三陽車款到「${symCatName()}」？`)) return;
+    const b = $('#symi'); b.disabled = true;
+    try {
+      const all = {}; allItems().forEach(x => all[x.i] = x);
+      const list = SYM_MODELS.map(([n, code, price, im]) => {
+        const id = 'SYM-' + code, old = all[id];
+        const it = old ? cleanItem(old) : { i: id, n: '三陽 ' + n, c: symCatName(), im: [im], t: '', d: `車款代碼：${code}\n\n可線上申辦分期（遠信國際資融），審核通過後到店交車。\n牌照、保險、領牌等費用與現車顏色，歡迎 LINE 或來電詢問。${price >= 118000 ? '\n※ 此車款分期另加手續費 3,000 元。' : ''}` };
+        it.v = [['', price, 99, id + '-1']]; it.lk = SYM_LIST_URL; it.lkt = '線上申辦分期';
+        return { item: it, on: old ? old._on : true, src: 'custom' };
+      });
+      await saveMany(list, b); await reloadRowsQuiet(); toast(`已匯入 ${list.length} 台，商城約 5 分鐘內更新`);
+    } catch (err) { $('#syme').textContent = err.message; }
+    b.disabled = false; b.textContent = `匯入／更新三陽車款（${SYM_MODELS.length} 台）`;
   };
   $('#ss').onclick = async () => {
     const name = $('#sn').value.trim(); if (!name) return $('#se').textContent = '請填店名';
@@ -915,6 +937,10 @@ function pickCat(cur, done) {
   };
   setTimeout(() => $('#pq').focus(), 50);
 }
+
+const SYM_LIST_URL = 'https://www.fartrust.com.tw/online_s2/index_own.asp?s=S01800402&own=Y';
+const SYM_MODELS = [["活力VIVO125 CBS (鼓)", "FX12T5", 58500, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/FX12T5.png"], ["WOO115 CBS(鼓)", "HJ11U3", 61000, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/AF529-2.png"], ["活力VIVO125 CBS (碟)", "FX12V7", 62000, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/FX12V7.png"], ["全新迪爵125 (電驅版) CBS鼓", "FU12T4-H", 65500, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/FU12T4-H.png"], ["迪爵 125 CBS(鼓) (迪爵改款)", "FCB12Z1", 67000, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/FCB12Z1.png"], ["全新迪爵125 (電驅版) CBS碟", "FU12V5-H", 68500, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/FU12V5-H.png"], ["迪爵 125 CBS(碟) (迪爵改款)", "FCB12D1", 70000, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/FCB12D1.png"], ["FIDDLE LT CBS版", "FM11W9", 76000, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/FM11W9.png"], ["Z1 attila CBS(雙碟)", "FR12V7", 78500, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/%E7%81%B0%28%E6%B6%88%E5%85%89%29AM055.png"], ["蜂鳥 CLB CU 125 (電驅版) CBS碟", "FYA12D5-H", 83000, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/FYA12D5-H.png"], ["Fiddle 125 電驅版 CBS版", "FAE12D2-H", 83000, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/FAE12D1.png"], ["野狼 125(鼓)", "PA12MB", 84500, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/PA12MB.png"], ["4MICA 125 電驅版 CBS", "AL12W6-H", 86000, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/AL12W6-H.png"], ["Fiddle 125 電驅版 ABS版", "FAE12B2-H", 89000, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/FAE12B1.png"], ["Z1 attila ABS(雙碟)", "FR12V9", 89500, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/FR12V9.png"], ["JET SR(空冷) CBS2.0(雙碟)", "FK12W2", 91500, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/%E7%81%B0%28%E6%B6%88%E5%85%89%29%E6%B7%BA%E6%A3%95AL698.png"], ["4MICA 150", "AL15W4", 92000, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/AL15W4.png"], ["4MICA 125 電驅版 ABS", "AL12W7-H", 92000, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/AL12W7-H.png"], ["野狼傳奇 125(碟)", "PA12MA", 93500, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/PA12MA.png"], ["KRN BT 125 ABS(雙碟) 電驅版", "KR12W3-H", 98500, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/KR12W3-H.png"], ["4MICA 150 電驅版 ABS", "AL15W8-H", 99000, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/AL15W8-H.png"], ["JET SR(空冷) ABS(雙碟)", "FK12W1", 99500, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/%E7%81%B0%28%E6%B6%88%E5%85%89%29%E7%B6%A0AL697.png"], ["NEW JET SL 125 (水冷) ABS+TCS雙碟", "FKB12T2-H", 105000, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/FKB12T2-H.png"], ["FIDDLE DX 158 水冷 ABS+TCS (雙碟)", "FAE16T1", 105500, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/FAE16T1.png"], ["全新 FIDDLE DX 158 水冷 (電驅版) ABS+TCS (雙碟)", "FAE16T2-H", 105500, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/FAE16T1.png"], ["NEW JET SL+ 158 (水冷) ABS+TCS雙碟", "FKB16T3-H", 111000, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/FKB16T3-H.png"], ["NEW JET SL+ 158 (水冷) C-TCS版 彎道ABS+TCS+ALC防浮舉系統", "FKB16T4-H", 114000, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/FKB16T4-H.png"], ["MMBCU158 TCS雙碟", "TDA16T6-H", 118000, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/v953.png"], ["DRG龍2代 158 競能電驅ZRSG3.0 SVIS 可變進氣系統 浮動碟 雙碟ABS TCS", "TBB16T6-H", 120000, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/TBB16T4.png"], ["DRG BT二代 Keyset 電驅版 (鑰匙版+彎道特仕版)", "TBB16T9-H", 123000, "https://www.fartrust.com.tw/online_s2/images/%E4%B8%89%E9%99%BD/TBB16T9-H.png"]];
+function symCatName() { return catList().find(n => /SYM/i.test(n) && /新車/.test(n)) || 'SYM 新車購買 歡迎詢問'; }
 
 function catList() { return (CFG.categories || PROD.cats).map(c => c.n); }
 

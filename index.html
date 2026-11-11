@@ -22,6 +22,7 @@
   --r:12px; --shadow:0 1px 2px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.05);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;padding-bottom:env(safe-area-inset-bottom)}
 a{color:inherit}
@@ -66,6 +67,14 @@ select.sort{font:inherit;font-size:13px;border:1px solid var(--line);background:
 .price{color:var(--accent);font-weight:800}
 .pc .price{margin-top:auto;font-size:15px}
 .fsb{display:inline-block;align-self:flex-start;font-size:11.5px;font-weight:700;color:var(--ok);background:#e7f3ec;border-radius:5px;padding:1px 6px}
+.sym{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;margin:14px 0 4px;background:linear-gradient(135deg,#1d3557,#274a78);color:#fff;border-radius:14px;padding:16px 18px;box-shadow:var(--shadow)}
+.sym small{display:block;opacity:.8;font-size:12.5px;margin-bottom:2px}
+.sym b{display:block;font-size:18px;letter-spacing:.5px}
+.sym p{margin:4px 0 10px;font-size:13.5px;opacity:.9}
+.sym a.go{display:inline-flex;align-items:center;gap:6px;background:#fff;color:#1d3557;font-weight:800;text-decoration:none;border-radius:999px;padding:9px 16px;font-size:14px}
+.sym .qr{background:#fff;border-radius:10px;padding:6px;text-align:center;color:#1d3557;font-size:11px;font-weight:700}
+.sym .qr img{width:110px;height:110px;image-rendering:pixelated}
+@media(max-width:640px){.sym{grid-template-columns:1fr}.sym .qr{display:none}}
 .hs{margin:16px 0 6px}
 .hs h2{font-size:17px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
 .hs h2:before{content:"";width:4px;height:18px;border-radius:2px;background:var(--accent)}
@@ -303,7 +312,7 @@ function loadDesc() { return descP || (descP = fetch('desc.json').then(r => r.js
 
 /* ---------- cart ---------- */
 function findVar(p, vid) { return p && p.v.find(v => v[3] === vid); }
-function cleanCart() { cart = cart.filter(c => findVar(BYID[c.i], c.v)); saveCart(); }
+function cleanCart() { cart = cart.filter(c => findVar(BYID[c.i], c.v) && !BYID[c.i].lk); saveCart(); }
 function saveCart() { store.set('wade_cart', cart); badge(); }
 function badge() { const n = cart.reduce((a, c) => a + c.q, 0); $('#badge').textContent = n ? (n > 99 ? '99+' : n) : ''; }
 function maxQty(v) { return Math.max(1, Math.min(99, v[2] || 99)); }
@@ -406,14 +415,16 @@ function filtered() {
 function priceTxt(p) { return p.p === p.P ? money(p.p) : money(p.p) + ' – ' + Number(p.P).toLocaleString('en-US'); }
 function card(p) {
   return `<a class="pc" href="#/p/${p.i}"><div class="im"><img loading="lazy" src="${img(p.im[0], 1)}" alt="">${p.so ? '<div class="so">已售完</div>' : ''}</div>
-  <div class="tx"><div class="nm">${esc(p.n)}</div>${p.fs ? '<span class="fsb">7-11 免運</span>' : ''}<div class="price">${priceTxt(p)}</div></div></a>`;
+  <div class="tx"><div class="nm">${esc(p.n)}</div>${p.fs ? '<span class="fsb">7-11 免運</span>' : ''}${p.lk ? `<span class="fsb" style="color:#1d3557;background:#e6edf7">${esc(p.lkt || '外部連結')}</span>` : ''}<div class="price">${priceTxt(p)}</div></div></a>`;
 }
 function viewList() {
   markCat(); document.title = '韋德機車精品 線上商城';
   const list = filtered(); const cat = DATA.cats.find(c => c.k === state.cat);
   const title = state.q ? `搜尋「${esc(state.q)}」` : (cat ? esc(cat.n) : '全部商品');
+  const symCat = (CFG.categories || []).map(c => c.n).find(n => /SYM/i.test(n) && /新車/.test(n));
+  const sym = CFG.symHide ? '' : (!state.q && symCat && state.cat === symCat) ? symBanner() : '';
   const home = !state.cat && !state.q ? (CFG.home || []).map(sc => ({ t: sc.t, items: sc.ids.map(i => BYID[i]).filter(Boolean) })).filter(sc => sc.items.length) : [];
-  $('#app').innerHTML = home.map(sc => `<section class="hs"><h2>${esc(sc.t)}</h2><div class="hrow">${sc.items.map(card).join('')}</div></section>`).join('') +
+  $('#app').innerHTML = sym + home.map(sc => `<section class="hs"><h2>${esc(sc.t)}</h2><div class="hrow">${sc.items.map(card).join('')}</div></section>`).join('') +
     `<div class="bar"><h1>${title}<small>${list.length} 件</small></h1>
     <select class="sort" id="sort"><option value="def">最新上架</option><option value="asc">價格低→高</option><option value="desc">價格高→低</option></select></div>
     ${list.length ? `<div class="grid" id="grid">${list.slice(state.pg * PS, state.pg * PS + PS).map(card).join('')}</div>` : `<div class="empty">找不到相關商品<br>換個關鍵字，或 <a href="${CFG.line}" target="_blank" rel="noopener">LINE 詢問我們</a></div>`}
@@ -425,6 +436,14 @@ function viewList() {
   document.querySelectorAll('.spg .jmp').forEach(j => { const i = j.querySelector('input'), n = +i.max;
     const go = () => { const k = parseInt(i.value, 10); if (k >= 1 && k <= n) toPage(k - 1); else { i.value = ''; toast(`請輸入 1～${n}`); } };
     j.querySelector('[data-go]').onclick = e => { e.preventDefault(); go(); }; i.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } }; });
+}
+// 三陽新車線上分期（遠信國際資融）
+const SYM_URL = 'https://www.fartrust.com.tw/online_s2/index.asp?s=S01800402&own=Y';
+function symBanner() {
+  return `<div class="sym"><div><small>三陽線上購車・韋德車業</small><b>掃碼就搞定　分期輕鬆購</b>
+    <p>線上申辦機車分期（遠信國際資融），審核通過後到店交車。</p>
+    <a class="go" href="${CFG.symUrl || SYM_URL}" target="_blank" rel="noopener">線上申辦分期 ›</a></div>
+    <div class="qr"><img src="sym-qr.png" alt="分期申辦 QR Code">手機掃碼申辦</div></div>`;
 }
 // 商城分頁：一頁 20 件
 const PS = 20;
@@ -462,8 +481,10 @@ function viewProduct(p) {
       ${p.nc || p.sc != null || p.sh != null ? `<div class="stock" style="margin-top:6px">🚚 運費：${p.nc ? '不能寄 7-11' : (p.fs ? '' : '7-11 ' + money(p.sc != null ? p.sc : CFG.shipping.cvs.fee))}${p.nc || !p.fs ? '｜' : ''}宅配 ${money(p.sh != null ? p.sh : CFG.shipping.home.fee)}${CFG.shipping.home.feeFrom && p.sh == null ? ' 起' : ''}</div>` : ''}
       ${single ? '' : `<div class="tier"><h3>${esc(p.t || '規格')}</h3><div class="opts" id="o1">${t1.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>
       ${two ? `<div class="tier"><h3>選項</h3><div class="opts" id="o2">${t2.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}`}
-      <div class="row"><span class="lab">數量</span><div class="qty"><button id="qm">−</button><input id="qn" type="number" inputmode="numeric" value="1" min="1"><button id="qp">＋</button></div><span class="stock" id="stk"></span></div>
-      <div class="btns"><button class="btn" id="add">加入購物車</button><button class="btn solid" id="buy">直接購買</button></div>
+      ${p.lk ? `<a class="btn solid block" style="display:grid;place-items:center;text-decoration:none;margin-top:16px" href="${esc(p.lk)}" target="_blank" rel="noopener">${esc(p.lkt || '前往了解')} ›</a>
+      <div class="tip" style="color:var(--ink2);background:#f3f4f6">這個商品請透過上方連結辦理，不能加入購物車。有任何問題歡迎 LINE 詢問。</div>` : ''}
+      <div class="row"${p.lk ? ' hidden' : ''}><span class="lab">數量</span><div class="qty"><button id="qm">−</button><input id="qn" type="number" inputmode="numeric" value="1" min="1"><button id="qp">＋</button></div><span class="stock" id="stk"></span></div>
+      <div class="btns"${p.lk ? ' hidden' : ''}><button class="btn" id="add">加入購物車</button><button class="btn solid" id="buy">直接購買</button></div>
       <a class="ask" id="ask" target="_blank" rel="noopener">💬 用 LINE 問這個商品</a>
       <div class="tip">網站庫存與店內現貨不一定同步，下單後我們會跟您確認是否有貨。不確定是否適用您的車，歡迎先 <a href="${CFG.line}" target="_blank" rel="noopener">LINE 詢問</a>。</div>
     </div>
