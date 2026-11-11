@@ -825,7 +825,11 @@ $('#home').onclick = e => { e.preventDefault(); if (!pw || !PROD) return; SEL.cl
 function viewSettings() {
   window.scrollTo(0, 0); REDRAW = null;
   let logo = CFG.logo || '';
-  $('#app').innerHTML = nav('s') + `<div class="box"><h2>商城 Logo 與店名</h2>
+  $('#app').innerHTML = nav('s') + `<div class="box"><h2>資料備份</h2>
+    <div class="hint" style="margin-top:0">商品修改資料和分類清單，會備份到你雲端硬碟的「韋德商城備份」試算表（每次一個新分頁，保留最近 30 次）。</div>
+    <div id="bki" style="margin-top:10px;font-size:14px;line-height:1.8">讀取中…</div>
+    <button class="btn" style="width:100%;margin-top:10px" id="bkn">☁ 立即備份</button><div class="err" id="bke"></div></div>
+  <div class="box"><h2>商城 Logo 與店名</h2>
     <div class="lgprev" id="lp"></div>
     <div class="hint">這是商城和後台左上角的樣子。建議用<b>去背的 PNG</b>，橫的或方的都可以。</div>
     <div class="row" style="margin-top:12px;flex-wrap:wrap">
@@ -848,6 +852,17 @@ function viewSettings() {
     try { const j = await api('upload', { mime: 'image/png', data: await shrink(f, 600, 'image/png') }); logo = j.url + '=s600'; }
     catch (err) { toast('上傳失敗：' + err.message); }
     prev();
+  };
+  const drawBk = j => {
+    $('#bki').innerHTML = `上次備份：<b>${esc(j.at || '還沒備份過')}</b><br>每天自動備份：${j.auto ? '<b style="color:var(--ok)">已開啟</b>（每天凌晨 3 點，資料沒變就不重複備份）' : '<b style="color:var(--warn)">還沒開啟</b>（請在 GAS 執行一次 shopSetupBackup）'}` +
+      (j.url ? `<br><a href="${esc(j.url)}" target="_blank" rel="noopener">打開備份試算表 ↗</a>` : '');
+  };
+  api('backup_info').then(drawBk).catch(e => { $('#bki').textContent = '讀取失敗：' + e.message; });
+  $('#bkn').onclick = async () => {
+    const b = $('#bkn'); b.disabled = true; b.textContent = '備份中…'; $('#bke').textContent = '';
+    try { await api('backup'); drawBk(await api('backup_info')); toast('備份完成'); }
+    catch (e) { $('#bke').textContent = '備份失敗：' + e.message; }
+    b.disabled = false; b.textContent = '☁ 立即備份';
   };
   $('#symi').onclick = async () => {
     if (!confirm(`匯入 ${SYM_MODELS.length} 台三陽車款到「${symCatName()}」？`)) return;
