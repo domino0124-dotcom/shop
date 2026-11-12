@@ -136,6 +136,10 @@ select.sort{font:inherit;font-size:13px;border:1px solid var(--line);background:
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .btn.block{width:100%}
 .tip{margin-top:14px;font-size:12.5px;color:var(--warn);background:#fff7e8;border-radius:8px;padding:8px 10px}
+.vids{display:flex;gap:12px;overflow-x:auto;margin-top:8px;padding-bottom:4px}
+.vid{flex:none;width:100%;max-width:560px;aspect-ratio:16/9;border:0;border-radius:10px;background:#000}
+.vid.v{width:300px;aspect-ratio:9/16}.vid.ig{width:320px;aspect-ratio:auto;height:560px;background:#fff;border:1px solid var(--line)}
+.vbtn{display:inline-block;margin-top:8px;font-size:13.5px;color:var(--accent);font-weight:600;text-decoration:none}
 .desc{background:#fff;border-radius:var(--r);padding:16px;box-shadow:var(--shadow);margin-top:16px}
 .desc h2,.box h2{font-size:15px;margin:0 0 10px}
 .desc pre{white-space:pre-wrap;font:inherit;margin:0 0 12px;color:#2c2f36}
@@ -440,6 +444,17 @@ function showAnn() {
   $('#annt').textContent = a.text; $('#ann').classList.toggle('info', a.tone === 'info'); $('#ann').hidden = false;
   $('#annx').onclick = () => { $('#ann').hidden = true; try { sessionStorage.setItem('wade_ann_x', a.text); } catch (e) {} };
 }
+// 影片連結 → 嵌入網址（YouTube／Shorts、Instagram Reels、Facebook、TikTok）
+function vEmbed(u) {
+  u = String(u || '').trim(); let m;
+  if ((m = u.match(/drive\.google\.com\/file\/d\/([\w-]{10,})/))) return { k: '影片檔', src: 'https://drive.google.com/file/d/' + m[1] + '/preview', v: 1 };
+  if ((m = u.match(/youtube\.com\/shorts\/([\w-]{6,})/))) return { k: 'YouTube Shorts', src: 'https://www.youtube.com/embed/' + m[1], v: 1 };
+  if ((m = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|live\/))([\w-]{6,})/))) return { k: 'YouTube', src: 'https://www.youtube.com/embed/' + m[1], v: 0 };
+  if ((m = u.match(/instagram\.com\/(?:[\w.]+\/)?(?:reels?|p|tv)\/([\w-]+)/))) return { k: 'Instagram', src: 'https://www.instagram.com/reel/' + m[1] + '/embed', v: 1, ig: 1 };
+  if ((m = u.match(/tiktok\.com\/.*\/video\/(\d+)/))) return { k: 'TikTok', src: 'https://www.tiktok.com/embed/v2/' + m[1], v: 1 };
+  if (/(facebook\.com|fb\.watch)\//.test(u)) return { k: 'Facebook', src: 'https://www.facebook.com/plugins/video.php?show_text=false&href=' + encodeURIComponent(u), v: /\/reels?\//.test(u) ? 1 : 0 };
+  return null;
+}
 function priceTxt(p) { return p.p === p.P ? money(p.p) : money(p.p) + ' – ' + Number(p.P).toLocaleString('en-US'); }
 function card(p) {
   return `<a class="pc" href="#/p/${p.i}"><div class="im"><img loading="lazy" src="${img(p.im[0], 1)}" alt="">${p.so ? '<div class="so">已售完</div>' : ''}</div>
@@ -498,6 +513,7 @@ function viewProduct(p) {
   const firstOk = p.v.find(v => v[2] > 0);
   if (single) sel1 = '';
   const imgs = [...p.im];
+  const vids = (p.vd || []).map(vEmbed).filter(Boolean);
 
   $('#app').innerHTML = `<button class="back" onclick="history.length>1?history.back():location.hash='#/'">‹ 返回</button>
   <div class="pd">
@@ -505,7 +521,7 @@ function viewProduct(p) {
       ${imgs.length > 1 ? `<div class="thumbs" id="thumbs">${imgs.map((id, k) => `<img src="${img(id, 1)}" data-k="${k}" class="${k ? '' : 'on'}" alt="">`).join('')}</div>` : ''}</div>
     <div class="info">
       <h1>${esc(p.n)}</h1>
-      <div class="price" id="pp">${priceTxt(p)}</div>${p.fs ? `<div class="fsb" style="margin-top:6px">🚚 ${esc(fsLabel())}</div>` : ''}
+      <div class="price" id="pp">${priceTxt(p)}</div>${vids.length ? `<a class="vbtn" href="#" onclick="document.getElementById('pvid').scrollIntoView({behavior:'smooth'});return false">▶ 看商品影片</a>` : ''}${p.fs ? `<div class="fsb" style="margin-top:6px">🚚 ${esc(fsLabel())}</div>` : ''}
       ${p.nc || p.sc != null || p.sh != null ? `<div class="stock" style="margin-top:6px">🚚 運費：${p.nc ? '不能寄 7-11' : (p.fs ? '' : '7-11 ' + money(p.sc != null ? p.sc : CFG.shipping.cvs.fee))}${p.nc || !p.fs ? '｜' : ''}宅配 ${money(p.sh != null ? p.sh : CFG.shipping.home.fee)}${CFG.shipping.home.feeFrom && p.sh == null ? ' 起' : ''}</div>` : ''}
       ${single ? '' : `<div class="tier"><h3>${esc(p.t || '規格')}</h3><div class="opts" id="o1">${t1.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>
       ${two ? `<div class="tier"><h3>${esc(p.t2 || '選項')}</h3><div class="opts" id="o2">${t2.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}`}
@@ -518,6 +534,7 @@ function viewProduct(p) {
       <div class="tip">網站庫存與店內現貨不一定同步，下單後我們會跟您確認是否有貨。不確定是否適用您的車，歡迎先 <a href="${CFG.line}" target="_blank" rel="noopener">LINE 詢問</a>。</div>
     </div>
   </div>
+  ${vids.length ? `<div class="desc" id="pvid"><h2>商品影片</h2><div class="vids">${vids.map(e => `<iframe class="vid${e.ig ? ' ig' : e.v ? ' v' : ''}" src="${esc(e.src)}" loading="lazy" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`).join('')}</div></div>` : ''}
   <div class="desc" id="desc"><h2>商品說明</h2><div id="dbody" class="stock">載入中…</div></div>`;
 
   // gallery
