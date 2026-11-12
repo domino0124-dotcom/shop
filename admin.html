@@ -232,7 +232,8 @@ async function api(op, extra) {
 // 加快開啟：設定檔一到就同時去 GAS 拿商品修改資料，不用等商品檔下載完
 let LISTP = null;
 const cfgP = fetch('config.json', { cache: 'no-cache' }).then(r => r.json());
-cfgP.then(c => { CFG = c; if (pw) { LISTP = api('list'); LISTP.catch(() => {}); } }).catch(() => {});
+let CFGP = null;
+cfgP.then(c => { CFG = c; if (pw) { LISTP = api('list'); LISTP.catch(() => {}); CFGP = api('get_config'); CFGP.catch(() => {}); } }).catch(() => {});
 Promise.all([cfgP, fetch('products.json', { cache: 'no-cache' }).then(r => r.json())])
   .then(([c, p]) => { CFG = c; applyBrand(); PROD = p; IMG = p.img; p.items.forEach((x, k) => { x._k = k; BASE[x.i] = x; }); pw ? loadRows() : viewLogin(); })
   .catch(e => { $('#app').innerHTML = '<div class="empty">載入失敗：' + esc(e.message) + '</div>'; });
@@ -266,6 +267,9 @@ async function loadRows() {
   else $('#app').innerHTML = '<div class="empty">讀取商品資料…</div>';
   try {
     const j = await (LISTP || api('list')); LISTP = null;
+    // 網站上的 config.json 可能還是幾分鐘前的舊版，改用 GitHub 上最新的分類設定
+    try { const fc = await (CFGP || api('get_config')); CFGP = null;
+      if (fc && fc.config && JSON.stringify(fc.config) !== JSON.stringify(CFG)) { CFG = fc.config; applyBrand(); if (cached && !EDITING && $('#lv')) { const y = scrollY; viewList(); scrollTo(0, y); } } } catch (e) { console.warn('get_config', e); }
     const same = cached && JSON.stringify(cached) === JSON.stringify(j.rows);
     setRows(j.rows);
     if (!cached || (!EDITING && want)) return firstView(h0);
@@ -578,6 +582,16 @@ function drawQ() {
   drawQ.was = SAVEQ.n;
 }
 window.addEventListener('beforeunload', e => { if (SAVEQ.n) { e.preventDefault(); e.returnValue = ''; } });
+// 切回這個分頁時，先抓最新資料（避免用舊資料覆蓋掉其他分頁／手機剛改的分類）
+document.addEventListener('visibilitychange', async () => {
+  if (document.hidden || !pw || !PROD || SAVEQ.n || EDITING) return;
+  try {
+    const old = JSON.stringify(ROWS); await reloadRowsQuiet();
+    const fc = await api('get_config'); const cfgCh = fc.config && JSON.stringify(fc.config) !== JSON.stringify(CFG); if (cfgCh) CFG = fc.config;
+    const typing = document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+    if ((cfgCh || old !== JSON.stringify(ROWS)) && $('#lv') && !typing && !document.querySelector('.pk')) { const y = scrollY; viewList(); scrollTo(0, y); }
+  } catch (e) {}
+});
 // 影片連結 → 嵌入網址（YouTube／Shorts、Instagram Reels、Facebook、TikTok）
 function vEmbed(u) {
   u = String(u || '').trim(); let m;
@@ -1107,8 +1121,10 @@ async function saveConfig(cfg, withProducts) {
     prod.items.forEach(p => { delete p._k; });
     body.products = JSON.stringify(prod);
   }
-  await api('save_config', body);
-  CFG = cfg;
+  // 告訴後端「哪些分類是我刪掉的」，其他分頁新增的分類就不會被蓋掉
+  body.removed = (CFG.categories || []).map(c => c.n).filter(n => !cfg.categories.some(c => c.n === n));
+  const r = await api('save_config', body);
+  CFG = r.config || cfg;
   if (prod) { PROD = prod; BASE = {}; PROD.items.forEach((x, k) => { x._k = k; BASE[x.i] = x; }); }
 }
 function viewCats() {
