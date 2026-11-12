@@ -316,7 +316,8 @@ function viewList(keep) {   // keep = 只更新下面清單，搜尋框不重畫
     ? `<table class="tbl"><thead><tr><th><input type="checkbox" class="sel" id="selall" title="全選這一頁"></th><th></th>${sh('n', '商品名稱')}${sh('c', '分類')}${sh('p', '價格')}<th>狀態</th><th></th></tr></thead><tbody>${pageList.map(trow).join('')}</tbody></table>`
     : pageList.map(row).join('');
   const orphan = Object.values(ROWS).filter(r => !BASE[r.id] && r.src === '蝦皮修改').map(r => r.id);
-  const rest = (orphan.length ? `<div class="tip" style="margin:0 0 10px;font-size:13px">蝦皮上已經刪掉的商品，還留有 ${orphan.length} 筆你在網站改過的紀錄（商城已經不顯示）。<button class="btn sm gray" id="orph" style="margin-left:6px">清除</button></div>` : '') + `<div class="chips" style="flex-wrap:wrap">${tabs.map(([k, n]) => `<button class="chip${view.tab === k ? ' on' : ''}" data-t="${k}">${n} ${cnt[k]}</button>`).join('')}<span class="hint" style="margin:0 0 0 6px;align-self:center">共 ${list.length} 件　・點分類（✎）就能直接改${W ? '　・勾選多個可一起「移到分類」' : ''}</span></div>
+  const lostCats = [...new Set(allItems().map(x => x.c).filter(c => c && !catList().includes(c)))];
+  const rest = (lostCats.length ? `<div class="tip" style="margin:0 0 10px;font-size:13px">有商品用的分類不在分類清單裡（可能是新增後被蓋掉了）：<b>${lostCats.map(esc).join('、')}</b><button class="btn sm solid" id="fixcat" style="margin-left:6px">加回分類清單</button></div>` : '') + (orphan.length ? `<div class="tip" style="margin:0 0 10px;font-size:13px">蝦皮上已經刪掉的商品，還留有 ${orphan.length} 筆你在網站改過的紀錄（商城已經不顯示）。<button class="btn sm gray" id="orph" style="margin-left:6px">清除</button></div>` : '') + `<div class="chips" style="flex-wrap:wrap">${tabs.map(([k, n]) => `<button class="chip${view.tab === k ? ' on' : ''}" data-t="${k}">${n} ${cnt[k]}</button>`).join('')}<span class="hint" style="margin:0 0 0 6px;align-self:center">共 ${list.length} 件　・點分類（✎）就能直接改${W ? '　・勾選多個可一起「移到分類」' : ''}</span></div>
     ${list.length > view.ps ? pager(list) : ''}
     <div class="list" id="list">${body}</div>
     ${list.length > view.ps ? pager(list) : ''}
@@ -339,6 +340,12 @@ function viewList(keep) {   // keep = 只更新下面清單，搜尋框不重畫
     bindNav();
   }
   document.querySelectorAll('.chip[data-t]').forEach(b => b.onclick = () => { view.tab = b.dataset.t; view.pg = 0; viewList(true); });
+  if ($('#fixcat')) $('#fixcat').onclick = async () => {
+    const b = $('#fixcat'); b.disabled = true; b.textContent = '儲存中…';
+    try { const cats = [...CFG.categories]; lostCats.forEach(n => { if (!cats.some(c => c.n === n)) cats.splice(cats.length - 1, 0, { n, k: [] }); });
+      await saveConfig({ ...CFG, categories: cats }, false); toast(`已加回 ${lostCats.length} 個分類`); viewList(true); }
+    catch (err) { alert(err.message); b.disabled = false; b.textContent = '加回分類清單'; }
+  };
   if ($('#orph')) $('#orph').onclick = async () => {
     if (!confirm(`清除 ${orphan.length} 筆蝦皮已刪除商品的修改紀錄？（商城本來就已經不顯示了）`)) return;
     try { await api('delete_many', { ids: orphan }); await reloadRowsQuiet(); viewList(true); toast('已清除'); } catch (err) { alert(err.message); }
