@@ -124,6 +124,13 @@ select.sort{font:inherit;font-size:13px;border:1px solid var(--line);background:
 .ann.info{background:#e8f1fd;color:#1d3f6e;border-color:#c5d9f3}
 .ann .wrap{display:flex;gap:10px;align-items:flex-start;padding-top:9px;padding-bottom:9px}
 .ann .tx{flex:1;white-space:pre-line}.ann button{border:0;background:none;color:inherit;opacity:.6;font-size:15px;cursor:pointer;padding:0 2px}
+.rvs{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-size:13.5px;color:var(--ink2);text-decoration:none}
+.stars{color:#f5a623;letter-spacing:1px}.stars .off{color:#ddd}
+.rv{border-top:1px solid var(--line);padding:12px 0}.rv:first-of-type{border-top:0}
+.rv .h{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink2)}.rv .t{margin-top:6px;white-space:pre-wrap;font-size:14px;line-height:1.6}
+.rv .re{margin-top:8px;background:#f6f6f4;border-radius:8px;padding:8px 10px;font-size:13px;color:var(--ink2);white-space:pre-wrap}
+.rvi{border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;background:#fff}
+.starp{display:flex;gap:4px;margin:8px 0}.starp button{border:0;background:none;font-size:30px;line-height:1;color:#ddd;cursor:pointer;padding:0 2px}.starp button.on{color:#f5a623}
 .tier h3{font-size:13px;color:var(--ink2);margin:0 0 8px;font-weight:600}
 .opts{display:flex;flex-wrap:wrap;gap:8px}
 .opt{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 11px;font-size:13.5px;text-align:left;line-height:1.35}
@@ -304,7 +311,8 @@ function applyExtras(ex) {
   ((ex && ex.items) || []).forEach(p => { over[p.i] = p; });
   const items = [];
   BASE.forEach(p => { if (hid.has(p.i)) return; if (over[p.i]) { items.push({ ...over[p.i], _idx: p._idx, _ov: 1 }); delete over[p.i]; } else items.push(p); });
-  Object.values(over).forEach(p => { if (!hid.has(p.i)) items.push({ ...p, _idx: -(p._t || 1) }); });
+  // 剩下的是「我新增的」商品；蝦皮修改過、但蝦皮上已經刪掉的商品不顯示
+  Object.values(over).forEach(p => { if (!hid.has(p.i) && p._src !== '蝦皮修改') items.push({ ...p, _idx: -(p._t || 1) }); });
   BYID = {};
   items.forEach(p => { p._s = (p.n + ' ' + p.v.map(v => v[0]).join(' ')).toLowerCase(); BYID[p.i] = p; });
   DATA.items = items;
@@ -317,13 +325,13 @@ function loadExtras() {
   fetch(CFG.gasUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'shop_order', op: 'items' }) })
     .then(r => r.json()).then(res => {
       if (!res.ok) throw new Error(res.error);
-      const ex = { at: Date.now(), items: res.items || [], hidden: res.hidden || [], hot: res.hot || [] };
+      const ex = { at: Date.now(), items: res.items || [], hidden: res.hidden || [], hot: res.hot || [], rv: res.rv || {} };
       const old = store.get('wade_extras', null);
-      const changed = !old || JSON.stringify([old.items, old.hidden]) !== JSON.stringify([ex.items, ex.hidden]);
+      const changed = !old || JSON.stringify([old.items, old.hidden, old.rv]) !== JSON.stringify([ex.items, ex.hidden, ex.rv]);
       store.set('wade_extras', ex);
       const wasWaiting = !extrasDone; extrasDone = exFetched = true; exLoading = false;
       if (changed) { applyExtras(ex); renderCats(); markCat(); }
-      const onList = !/^#\/(p|cart|checkout|done)/.test(location.hash);
+      const onList = !/^#\/(p|cart|checkout|done|review)/.test(location.hash);
       if (/^#\/p\//.test(location.hash) && ($('#waitP') || (wasWaiting && changed))) route();   // 商品頁也換成後台改過的最新資料
       else if (changed && onList && window.scrollY < 300) viewList();
     }).catch(err => { console.warn('extras', err); extrasDone = exFetched = true; exLoading = false; if ($('#waitP')) route(); });
@@ -385,6 +393,7 @@ function route() {
   if (h[0] === 'cart') return viewCart();
   if (h[0] === 'checkout') return cart.length ? viewCheckout() : (location.hash = '#/cart');
   if (h[0] === 'done') return viewDone();
+  if (h[0] === 'review') return viewReview(decodeURIComponent(h[1] || ''));
   const nc = h[0] === 'c' ? decodeURIComponent(h[1] || '') : '';
   if (nc !== state.cat) state.pg = 0;   // 換分類才回第 1 頁；看完商品按返回會停在原本那頁
   state.cat = nc; viewList();
@@ -411,7 +420,7 @@ function openCats() {
   $('#catp').onclick = e => { if (e.target.id === 'catp') $('#catp').classList.remove('on'); };
 }
 function markCat() {
-  document.querySelectorAll('.chip').forEach(b => b.classList.toggle('on', b.dataset.c === state.cat && !location.hash.match(/#\/(p|cart|checkout|done)/)));
+  document.querySelectorAll('.chip').forEach(b => b.classList.toggle('on', b.dataset.c === state.cat && !location.hash.match(/#\/(p|cart|checkout|done|review)/)));
   const on = document.querySelector('.chip.on'); if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' });
 }
 
@@ -427,7 +436,7 @@ qEl.addEventListener('input', e => {
   if (qComp || e.isComposing) return;
   clearTimeout(qt); qt = setTimeout(() => {
     state.q = qEl.value.trim(); state.pg = 0;
-    if (/^#\/(p|cart|checkout|done)/.test(location.hash)) location.hash = state.cat ? '#/c/' + state.cat : '#/'; else viewList();
+    if (/^#\/(p|cart|checkout|done|review)/.test(location.hash)) location.hash = state.cat ? '#/c/' + state.cat : '#/'; else viewList();
   }, 220);
 });
 qEl.addEventListener('keydown', e => { if (e.key === 'Enter') qEl.blur(); });
@@ -464,6 +473,9 @@ function vEmbed(u) {
   if (/(facebook\.com|fb\.watch)\//.test(u)) return { k: 'Facebook', src: 'https://www.facebook.com/plugins/video.php?show_text=false&href=' + encodeURIComponent(u), v: /\/reels?\//.test(u) ? 1 : 0 };
   return null;
 }
+// 評價：RV[商品ID] = [[星等, 內容, 名稱, 時間, 店家回覆], ...]
+const RVof = id => ((store.get('wade_extras', null) || {}).rv || {})[id] || [];
+const starsHtml = n => `<span class="stars">${[1, 2, 3, 4, 5].map(k => `<span class="${k <= Math.round(n) ? '' : 'off'}">★</span>`).join('')}</span>`;
 function priceTxt(p) { return p.p === p.P ? money(p.p) : money(p.p) + ' – ' + Number(p.P).toLocaleString('en-US'); }
 function card(p) {
   return `<a class="pc" href="#/p/${p.i}"><div class="im"><img loading="lazy" src="${img(p.im[0], 1)}" alt="">${p.so ? '<div class="so">已售完</div>' : ''}</div>
@@ -537,6 +549,7 @@ function viewProduct(p) {
   if (single) sel1 = '';
   const imgs = [...p.im];
   const vids = (p.vd || []).map(vEmbed).filter(Boolean), NV = vids.length;
+  const rvl = RVof(p.i), rvAvg = rvl.length ? rvl.reduce((a, r) => a + r[0], 0) / rvl.length : 0;
   // 影片放在相簿最前面（跟蝦皮一樣），先顯示封面，點了才播放
   const vPoster = e => [e.poster, p.im[0] && img(p.im[0])].filter(Boolean).map(u => `url("${u}")`).join(',');
 
@@ -546,7 +559,7 @@ function viewProduct(p) {
       ${imgs.length + NV > 1 ? `<div class="thumbs" id="thumbs">${vids.map((e, j) => `<span class="tv${j ? '' : ' on'}" data-k="${j}" style="background-image:${esc(vPoster(e))}">▶</span>`).join('')}${imgs.map((id, k) => `<img src="${img(id, 1)}" data-k="${k + NV}" class="${k + NV ? '' : 'on'}" alt="">`).join('')}</div>` : ''}</div>
     <div class="info">
       <h1>${esc(p.n)}</h1>
-      <div class="price" id="pp">${priceTxt(p)}</div>${p.fs ? `<div class="fsb" style="margin-top:6px">🚚 ${esc(fsLabel())}</div>` : ''}
+      <div class="price" id="pp">${priceTxt(p)}</div>${rvl.length ? `<a class="rvs" href="#" id="rvgo">${starsHtml(rvAvg)}<b style="color:var(--ink)">${rvAvg.toFixed(1)}</b>（${rvl.length} 則評價）</a>` : ''}${p.fs ? `<div class="fsb" style="margin-top:6px">🚚 ${esc(fsLabel())}</div>` : ''}
       ${p.nc || p.sc != null || p.sh != null ? `<div class="stock" style="margin-top:6px">🚚 運費：${p.nc ? '不能寄 7-11' : (p.fs ? '' : '7-11 ' + money(p.sc != null ? p.sc : CFG.shipping.cvs.fee))}${p.nc || !p.fs ? '｜' : ''}宅配 ${money(p.sh != null ? p.sh : CFG.shipping.home.fee)}${CFG.shipping.home.feeFrom && p.sh == null ? ' 起' : ''}</div>` : ''}
       ${single ? '' : `<div class="tier"><h3>${esc(p.t || '規格')}</h3><div class="opts" id="o1">${t1.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>
       ${two ? `<div class="tier"><h3>${esc(p.t2 || '選項')}</h3><div class="opts" id="o2">${t2.map(o => `<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}`}
@@ -559,7 +572,11 @@ function viewProduct(p) {
       <div class="tip">網站庫存與店內現貨不一定同步，下單後我們會跟您確認是否有貨。不確定是否適用您的車，歡迎先 <a href="${CFG.line}" target="_blank" rel="noopener">LINE 詢問</a>。</div>
     </div>
   </div>
-  <div class="desc" id="desc"><h2>商品說明</h2><div id="dbody" class="stock">載入中…</div></div>`;
+  <div class="desc" id="desc"><h2>商品說明</h2><div id="dbody" class="stock">載入中…</div></div>
+  <div class="desc" id="prv"><h2>商品評價${rvl.length ? `　<span style="font-size:14px;font-weight:400">${starsHtml(rvAvg)} ${rvAvg.toFixed(1)}／5（${rvl.length} 則）</span>` : ''}</h2>
+    ${rvl.length ? rvl.map(r => { const d = new Date(r[3]); return `<div class="rv"><div class="h">${starsHtml(r[0])}<span>${esc(r[2])}</span><span>${r[3] ? `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}` : ''}</span></div>${r[1] ? `<div class="t">${esc(r[1])}</div>` : ''}${r[4] ? `<div class="re">店家回覆：${esc(r[4])}</div>` : ''}</div>`; }).join('') : '<div class="stock">還沒有評價</div>'}
+    <a href="#/review" style="display:inline-block;margin-top:10px;font-size:13.5px;color:var(--accent);font-weight:600">買過這個商品？寫評價 ›</a></div>`;
+  if ($('#rvgo')) $('#rvgo').onclick = e => { e.preventDefault(); $('#prv').scrollIntoView({ behavior: 'smooth' }); };
 
   // gallery
   const slides = $('#slides');
@@ -815,15 +832,70 @@ function viewDone() {
       <div class="box" style="text-align:left"><h2>取貨方式</h2>${esc(CFG.shipping[o.ship].name)}
         ${(o.lines || []).map(l => `<div class="sum" style="font-size:13px;gap:10px"><span>${esc(l[0])}${l[1] ? '（' + esc(l[1]) + '）' : ''} ×${l[2]}</span><span>${money(l[3])}</span></div>`).join('')}</div>
       <a class="linebtn" href="${CFG.line}" target="_blank" rel="noopener">加 LINE 好友 ${esc(CFG.lineId)}</a>
+      <div class="hint" style="text-align:center;margin-top:12px">收到商品後，歡迎到網站最下方「⭐ 寫商品評價」分享心得（用訂單編號＋手機）</div>
       <a href="#/" style="display:block;text-align:center;margin:16px 0;color:var(--ink2)">繼續購物</a></div>`;
   $('#app').onclick = e => { const c = e.target.closest('.copy'); if (!c) return; navigator.clipboard?.writeText(c.dataset.c).then(() => toast('已複製')); };
+}
+
+/* ---------- 寫評價：訂單編號＋手機 → 列出買過的商品 → 星星＋心得 ---------- */
+function viewReview(no0) {
+  markCat(); document.title = '寫商品評價｜' + CFG.shopName; window.scrollTo(0, 0);
+  const buyer = store.get('wade_buyer', {}) || {};
+  const app = $('#app');
+  const form = (msg) => {
+    app.innerHTML = `<div class="bar"><h1>寫商品評價</h1></div><div class="box" style="max-width:520px;margin:0 auto">
+      <div class="hint" style="margin-top:0">買過的商品出貨後，就可以用訂單編號和下單時的手機寫評價。評價經店家確認後會顯示在商品頁。</div>
+      <label class="f"><span>訂單編號</span><input id="rno" placeholder="例：WD261112001" value="${esc(no0 || '')}" autocapitalize="characters"></label>
+      <label class="f"><span>下單時的手機</span><input id="rph" type="tel" inputmode="tel" value="${esc(buyer.phone || '')}"></label>
+      <button class="btn solid block" style="margin-top:14px" id="rgo">查詢訂單</button><div class="err" id="rer" style="color:var(--accent);margin-top:8px">${esc(msg || '')}</div></div>`;
+    $('#rgo').onclick = query;
+  };
+  async function query() {
+    const no = $('#rno').value.trim().toUpperCase(), phone = $('#rph').value.trim();
+    if (!no || !phone) return $('#rer').textContent = '請填訂單編號和手機';
+    const b = $('#rgo'); b.disabled = true; b.textContent = '查詢中…'; $('#rer').textContent = '';
+    try {
+      const r = await (await fetch(CFG.gasUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'shop_order', op: 'rv_order', no, phone }) })).json();
+      if (!r.ok) throw new Error(r.error || '查詢失敗');
+      write(no, phone, r);
+    } catch (e) { $('#rer').textContent = e.message; b.disabled = false; b.textContent = '查詢訂單'; }
+  }
+  function write(no, phone, r) {
+    const todo = r.items.filter(x => !x.done), stars = {};
+    app.innerHTML = `<div class="bar"><h1>寫商品評價</h1><small style="color:var(--ink2)">${esc(no)}</small></div><div style="max-width:560px;margin:0 auto">
+      ${r.items.map(x => { const p = BYID[x.i]; return `<div class="rvi" data-i="${esc(x.i)}"><div style="display:flex;gap:10px;align-items:center">
+        ${p && p.im[0] ? `<img src="${img(p.im[0], 1)}" alt="" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex:none">` : ''}
+        <div style="font-size:14px;line-height:1.45">${esc(x.n)}${x.vn ? `<div class="stock">${esc(x.vn)}</div>` : ''}</div></div>
+        ${x.done ? '<div class="stock" style="margin-top:8px">✓ 已經評價過了，謝謝您</div>' : `<div class="starp">${[1, 2, 3, 4, 5].map(k => `<button data-s="${k}">★</button>`).join('')}</div>
+        <textarea rows="3" maxlength="500" placeholder="分享使用心得、安裝狀況、適用車種…（選填）" style="width:100%"></textarea>`}</div>`; }).join('')}
+      ${todo.length ? `<div class="box" style="margin-top:12px"><label class="f" style="margin-top:0"><span>顯示名稱</span><input id="rnm" value="${esc(r.nm)}" maxlength="20"></label>
+        <button class="btn solid block" style="margin-top:12px" id="rsend">送出評價</button><div id="rer" style="color:var(--accent);margin-top:8px"></div></div>` : '<a class="btn block" href="#/" style="display:grid;place-items:center;margin-top:16px;text-decoration:none">回商城</a>'}</div>`;
+    app.onclick = e => {
+      const sb = e.target.closest('.starp button'); if (!sb) return;
+      const box = sb.closest('.rvi'), n = +sb.dataset.s; stars[box.dataset.i] = n;
+      box.querySelectorAll('.starp button').forEach(x => x.classList.toggle('on', +x.dataset.s <= n));
+    };
+    if ($('#rsend')) $('#rsend').onclick = async () => {
+      const list = todo.map(x => { const box = document.querySelector(`.rvi[data-i="${CSS.escape(x.i)}"]`); return { i: x.i, s: stars[x.i] || 0, t: box.querySelector('textarea').value.trim() }; }).filter(x => x.s);
+      if (!list.length) return $('#rer').textContent = '請至少幫一個商品點星星';
+      const b = $('#rsend'); b.disabled = true; b.textContent = '送出中…';
+      try {
+        const res = await (await fetch(CFG.gasUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'shop_order', op: 'rv_submit', no, phone, nm: $('#rnm').value.trim(), list }) })).json();
+        if (!res.ok) throw new Error(res.error || '送出失敗');
+        app.onclick = null;
+        app.innerHTML = `<div class="done"><div class="ck">✓</div><h1 style="font-size:20px;margin:6px 0">感謝您的評價！</h1><p class="stock">店家確認後就會顯示在商品頁</p><a class="btn" href="#/" style="display:inline-grid;place-items:center;padding:0 24px;margin-top:14px;text-decoration:none">回商城</a></div>`;
+      } catch (e) { $('#rer').textContent = e.message; b.disabled = false; b.textContent = '送出評價'; }
+    };
+  }
+  form();
+  if (no0 && buyer.phone) query();
 }
 
 /* ---------- footer ---------- */
 function renderFoot() {
   $('#foot').innerHTML = `<div><h3>購物須知</h3><ul>${CFG.notice.map(n => `<li>${esc(n)}</li>`).join('')}</ul></div>
   <div><h3>${esc(CFG.shopName)}</h3>${esc(CFG.address)}<br>電話 ${esc(CFG.phone)}　手機 ${esc(CFG.mobile)}<br>${CFG.hours.map(esc).join('<br>')}<br>
-  <a href="${CFG.line}" target="_blank" rel="noopener">LINE ${esc(CFG.lineId)}</a><br><span style="font-size:12px">商品資料更新：${esc(DATA.updated)}</span></div>`;
+  <a href="${CFG.line}" target="_blank" rel="noopener">LINE ${esc(CFG.lineId)}</a>　<a href="#/review">⭐ 寫商品評價</a><br><span style="font-size:12px">商品資料更新：${esc(DATA.updated)}</span></div>`;
 }
 })();
 </script>

@@ -62,8 +62,8 @@ label.f>span{display:block;font-size:13px;color:var(--ink2);margin-bottom:4px}
 .tierbox .th{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:14px}
 .tierbox .th button{border:0;background:none;color:var(--ink2);font-size:13px;cursor:pointer;padding:4px}
 .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.tag{background:#f1f2f4;border-radius:999px;padding:5px 4px 5px 12px;display:inline-flex;gap:2px;align-items:center;font-size:14px}
-.tag button{border:0;background:none;color:#999;font-size:13px;cursor:pointer;padding:2px 6px}
+.otag{background:#f1f2f4;border-radius:999px;padding:5px 4px 5px 12px;display:inline-flex;gap:2px;align-items:center;font-size:14px}
+.otag button{border:0;background:none;color:#999;font-size:13px;cursor:pointer;padding:2px 6px}
 .addt{display:flex;gap:6px;margin-top:8px}.addt input{flex:1;min-width:0}
 .vg{display:grid;grid-template-columns:minmax(0,1fr) 92px 70px;gap:6px;align-items:center;margin-top:6px}
 .vg .nm{font-size:14px;overflow-wrap:anywhere}.vg.h{font-size:12px;color:var(--ink2);margin-top:12px}
@@ -80,8 +80,8 @@ label.f>span{display:block;font-size:13px;color:var(--ink2);margin-bottom:4px}
 .err{color:var(--accent);font-size:13px;margin-top:8px}
 .more{display:block;margin:14px auto;padding:8px 20px;border:1px solid var(--line);background:#fff;border-radius:999px}
 .empty{text-align:center;color:var(--ink2);padding:40px 0}
-.nav{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;background:#e7e7e3;border-radius:10px;padding:4px;margin-bottom:12px}
-.nav button{border:0;background:none;border-radius:8px;height:38px;font-weight:700;color:var(--ink2)}
+.nav{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;background:#e7e7e3;border-radius:10px;padding:4px;margin-bottom:12px}
+.nav button{border:0;background:none;border-radius:8px;height:38px;font-weight:700;color:var(--ink2);padding:0;font-size:14px;white-space:nowrap}
 .nav button.on{background:#fff;color:var(--ink);box-shadow:var(--shadow)}
 .oc{background:#fff;border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;display:grid;gap:6px}
 .oc .top{display:flex;align-items:center;gap:8px}.oc .top b{font-size:15px}.oc .top .dt{color:var(--ink2);font-size:12.5px;flex:1}
@@ -282,7 +282,7 @@ async function loadRows() {
 /* ---------- 商品清單 ---------- */
 function allItems() {
   const out = [];
-  Object.values(ROWS).forEach(r => { if (!BASE[r.id] && r.item) out.push({ ...r.item, i: r.id, _kind: 'c', _on: r.on, _t: r.t }); });
+  Object.values(ROWS).forEach(r => { if (!BASE[r.id] && r.item && r.src !== '蝦皮修改') out.push({ ...r.item, i: r.id, _kind: 'c', _on: r.on, _t: r.t }); });
   out.sort((a, b) => b._t - a._t);
   PROD.items.forEach(p => {
     const r = ROWS[p.i];
@@ -311,7 +311,8 @@ function viewList(keep) {   // keep = 只更新下面清單，搜尋框不重畫
   const body = !list.length ? '<div class="empty">沒有商品</div>' : W
     ? `<table class="tbl"><thead><tr><th><input type="checkbox" class="sel" id="selall" title="全選這一頁"></th><th></th>${sh('n', '商品名稱')}${sh('c', '分類')}${sh('p', '價格')}<th>狀態</th><th></th></tr></thead><tbody>${pageList.map(trow).join('')}</tbody></table>`
     : pageList.map(row).join('');
-  const rest = `<div class="chips" style="flex-wrap:wrap">${tabs.map(([k, n]) => `<button class="chip${view.tab === k ? ' on' : ''}" data-t="${k}">${n} ${cnt[k]}</button>`).join('')}<span class="hint" style="margin:0 0 0 6px;align-self:center">共 ${list.length} 件　・點分類（✎）就能直接改${W ? '　・勾選多個可一起「移到分類」' : ''}</span></div>
+  const orphan = Object.values(ROWS).filter(r => !BASE[r.id] && r.src === '蝦皮修改').map(r => r.id);
+  const rest = (orphan.length ? `<div class="tip" style="margin:0 0 10px;font-size:13px">蝦皮上已經刪掉的商品，還留有 ${orphan.length} 筆你在網站改過的紀錄（商城已經不顯示）。<button class="btn sm gray" id="orph" style="margin-left:6px">清除</button></div>` : '') + `<div class="chips" style="flex-wrap:wrap">${tabs.map(([k, n]) => `<button class="chip${view.tab === k ? ' on' : ''}" data-t="${k}">${n} ${cnt[k]}</button>`).join('')}<span class="hint" style="margin:0 0 0 6px;align-self:center">共 ${list.length} 件　・點分類（✎）就能直接改${W ? '　・勾選多個可一起「移到分類」' : ''}</span></div>
     ${list.length > view.ps ? pager(list) : ''}
     <div class="list" id="list">${body}</div>
     ${list.length > view.ps ? pager(list) : ''}
@@ -334,6 +335,10 @@ function viewList(keep) {   // keep = 只更新下面清單，搜尋框不重畫
     bindNav();
   }
   document.querySelectorAll('.chip[data-t]').forEach(b => b.onclick = () => { view.tab = b.dataset.t; view.pg = 0; viewList(true); });
+  if ($('#orph')) $('#orph').onclick = async () => {
+    if (!confirm(`清除 ${orphan.length} 筆蝦皮已刪除商品的修改紀錄？（商城本來就已經不顯示了）`)) return;
+    try { await api('delete_many', { ids: orphan }); await reloadRowsQuiet(); viewList(true); toast('已清除'); } catch (err) { alert(err.message); }
+  };
   bindPager(() => viewList(true));
   document.querySelectorAll('th[data-s]').forEach(th => th.onclick = () => { const k = th.dataset.s; view.sd = view.sk === k ? -view.sd : 1; view.sk = k; view.pg = 0; viewList(true); });
   REDRAW = viewList; REDRAW._w = W;
@@ -426,13 +431,25 @@ function bulkBar(list) {
       <span class="grp"><select id="bsp"><option value="">運費不變</option><option value="sc">7-11 運費設為</option><option value="sh">宅配運費設為</option><option value="nc">不能寄 7-11</option><option value="def">恢復預設運費</option></select><input id="bspv" type="number" inputmode="numeric" placeholder="金額" hidden></span>
       <select id="bf"><option value="">免運不變</option><option value="1">設為免運</option><option value="0">取消免運</option></select>
       <select id="bo"><option value="">上下架不變</option><option value="on">全部上架</option><option value="off">全部下架</option></select>
-      <button class="btn sm solid" id="bgo">套用</button></span><button class="btn sm gray" id="bx">取消選取</button>`;
+      <button class="btn sm solid" id="bgo">套用</button></span><button class="btn sm gray" id="bdel">🗑 刪除</button><button class="btn sm gray" id="bx">取消選取</button>`;
     document.body.appendChild(bar);
     $('#bp').onchange = () => { const v = $('#bp').value; $('#bpv').hidden = !v; $('#br').hidden = v !== 'pct'; $('#bpv').placeholder = v === 'pct' ? '例：95' : v === 'add' ? '例：-100' : '金額'; $('#bpv').focus(); };
     $('#bs').onchange = () => { $('#bsv').hidden = $('#bs').value !== 'set'; };
     $('#bsp').onchange = () => { const v = $('#bsp').value; $('#bspv').hidden = !(v === 'sc' || v === 'sh'); if (!$('#bspv').hidden) $('#bspv').focus(); };
     $('#bc').onclick = () => pickCat($('#bc').dataset.c, c => { $('#bc').dataset.c = c; $('#bc').textContent = '分類：' + c; });
     $('#bx').onclick = () => { SEL.clear(); REDRAW && REDRAW(); bulkBar([]); };
+    $('#bdel').onclick = async () => {
+      const all = {}; allItems().forEach(x => all[x.i] = x); const ids = [...SEL].filter(i => all[i]);
+      const mine = ids.filter(i => !BASE[i]), shp = ids.filter(i => BASE[i]);
+      if (!mine.length) return alert('選到的都是蝦皮商品，網站上刪不掉（下次同步又會出現）。\n\n・不想賣：用「其他修改 → 全部下架」，客人就看不到了\n・要永久刪除：到蝦皮刪掉，下次同步網站就會自動消失');
+      if (!confirm(`永久刪除 ${mine.length} 個「我新增的」商品？刪了不能復原。` + (shp.length ? `\n\n另外選到的 ${shp.length} 個蝦皮商品不會刪除，會幫你保持下架。` : ''))) return;
+      const b = $('#bdel'); b.disabled = true; b.textContent = '刪除中…';
+      try {
+        await api('delete_many', { ids: mine });
+        if (shp.length) await api('toggle_many', { list: shp.filter(i => all[i]._on).map(i => ({ id: i, on: false, name: all[i].n })) });
+        await reloadRowsQuiet(); SEL.clear(); bulkBar([]); viewList(true); toast(`已刪除 ${mine.length} 個商品`);
+      } catch (err) { alert(err.message); b.disabled = false; b.textContent = '🗑 刪除'; }
+    };
     $('#bmore').onclick = () => { bar.classList.toggle('min'); $('#bmore').textContent = bar.classList.contains('min') ? '其他修改 ▾' : '收起 ▴'; };
     $('#bmv').onclick = () => pickCat('', async c => {
       const all = {}; allItems().forEach(x => all[x.i] = x); const ids = [...SEL].filter(i => all[i]);
@@ -649,7 +666,10 @@ async function viewEdit(x, fromHistory) {
     <input type="file" id="vfile" accept="video/*" hidden>
     <button class="btn sm" style="margin-top:8px" id="vup">📤 直接上傳影片檔</button>
     <div class="hint">可以直接上傳手機裡的影片（上限 200MB，像蝦皮一樣），或貼 YouTube／Shorts、IG Reels、FB、TikTok 連結。最多 5 支。<br>上傳的影片要等雲端硬碟處理幾分鐘，才能在商城播放。</div><div class="hint" id="vdk"></div></div>
-  <div class="box"><h2>商品說明</h2><textarea id="d" rows="7" placeholder="特色、適用車種、注意事項…">${esc(it.d || '')}</textarea><div class="hint">像 [[img:…]] 這樣的一行是「圖片的位置」（從蝦皮帶過來的），可以整行上下移動或刪掉。</div></div>
+  <div class="box"><h2>商品說明</h2><textarea id="d" rows="7" placeholder="特色、適用車種、注意事項…">${esc(it.d || '')}</textarea><input type="file" id="dfile" accept="image/*" multiple hidden>
+    <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn sm" id="dimg">🖼 在游標位置插入圖片</button><button class="btn sm gray" id="dpv">👀 預覽</button></div>
+    <div class="hint">先在文字裡點一下想放圖的位置，再按「插入圖片」。[[img:…]] 那一行就是圖片，整行刪掉＝拿掉那張圖。</div>
+    <div id="dprev" hidden style="margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:10px;max-height:500px;overflow:auto"></div></div>
   </div></div>
   <div class="err" id="er"></div>
   <div class="bar">
@@ -668,6 +688,32 @@ async function viewEdit(x, fromHistory) {
     if (lb) { const k = +lb.dataset.l; [ims[k - 1], ims[k]] = [ims[k], ims[k - 1]]; drawImgs(); }
   };
   $('#file').value = '';
+  // 商品說明：插入圖片（上傳後在游標位置加一行 [[img:網址]]）、預覽
+  let dpos = 0; const dta = $('#d');
+  const keepPos = () => { dpos = dta.selectionStart || 0; };
+  dta.addEventListener('keyup', keepPos); dta.addEventListener('click', keepPos); dta.addEventListener('blur', keepPos);
+  $('#dimg').onclick = () => $('#dfile').click();
+  $('#dfile').onchange = async e => {
+    const files = [...e.target.files]; e.target.value = ''; if (!files.length) return;
+    const b = $('#dimg'); b.disabled = true; const urls = [];
+    for (let k = 0; k < files.length; k++) {
+      b.textContent = `上傳中 ${k + 1}/${files.length}…`;
+      try { const b64 = await shrink(files[k]); const j = await api('upload', { mime: 'image/jpeg', data: b64 }); urls.push(j.url); } catch (err) { toast('上傳失敗：' + err.message); }
+    }
+    b.disabled = false; b.textContent = '🖼 在游標位置插入圖片';
+    if (!urls.length) return;
+    const v = dta.value, pos = Math.min(dpos, v.length);
+    const before = v.slice(0, pos), after = v.slice(pos);
+    const ins = (before && !before.endsWith('\n') ? '\n' : '') + urls.map(u => `[[img:${u}]]`).join('\n') + (after && !after.startsWith('\n') ? '\n' : '');
+    dta.value = before + ins + after; dpos = (before + ins).length;
+    toast('圖片已插入，記得按「儲存」'); if (!$('#dprev').hidden) drawPrev();
+  };
+  const drawPrev = () => {
+    $('#dprev').innerHTML = dta.value.split('\n').map(ln => { const m = ln.trim().match(/^\[\[img:([^\]\s]+)\]\]$/);
+      return m ? `<img src="${esc(img(m[1]))}" style="max-width:100%;display:block;margin:6px 0;border-radius:6px" alt="">` : `<div style="white-space:pre-wrap;font-size:14px;min-height:1em">${esc(ln)}</div>`; }).join('');
+  };
+  $('#dpv').onclick = () => { const pv = $('#dprev'); pv.hidden = !pv.hidden; $('#dpv').textContent = pv.hidden ? '👀 預覽' : '收起預覽'; if (!pv.hidden) drawPrev(); };
+  dta.addEventListener('input', () => { if (!$('#dprev').hidden) drawPrev(); });
   $('#file').onchange = async e => {
     const files = [...e.target.files]; e.target.value = '';
     for (let k = 0; k < files.length; k++) {
@@ -696,7 +742,7 @@ async function viewEdit(x, fromHistory) {
   const defPrice = () => { const c = Object.values(cell).find(c => String(c[0]).trim()); return c ? c[0] : ''; };
   function drawVs() {
     $('#tb2').hidden = !use2; $('#tog2').hidden = use2;
-    const tag = (o, t) => `<span class="tag">${esc(o)}<button data-rmo="${t}" data-o="${esc(o)}">✕</button></span>`;
+    const tag = (o, t) => `<span class="otag">${esc(o)}<button data-rmo="${t}" data-o="${esc(o)}">✕</button></span>`;
     $('#g1').innerHTML = o1.map(o => tag(o, 1)).join('') || '<span class="hint" style="margin:0">還沒有選項</span>';
     $('#g2').innerHTML = o2.map(o => tag(o, 2)).join('') || '<span class="hint" style="margin:0">還沒有選項</span>';
     const cs = combos(), dp = defPrice();
@@ -814,8 +860,56 @@ async function viewEdit(x, fromHistory) {
   };
 }
 
-function nav(on) { return `<div class="nav">${[['p', '商品'], ['o', '訂單'], ['h', '首頁'], ['c', '分類'], ['s', '設定']].map(([k, n]) => `<button data-n="${k}" class="${on === k ? 'on' : ''}">${n}</button>`).join('')}</div>`; }
-function bindNav() { document.querySelectorAll('.nav button').forEach(b => b.onclick = () => (SEL.clear(), bulkBar([]), view.quick = false, 0) || b.dataset.n === 'o' ? viewOrders() : b.dataset.n === 'c' ? viewCats() : b.dataset.n === 's' ? viewSettings() : b.dataset.n === 'h' ? viewHome() : viewList()); }
+function nav(on) { return `<div class="nav">${[['p', '商品'], ['o', '訂單'], ['r', '評價'], ['h', '首頁'], ['c', '分類'], ['s', '設定']].map(([k, n]) => `<button data-n="${k}" class="${on === k ? 'on' : ''}">${n}</button>`).join('')}</div>`; }
+function bindNav() { document.querySelectorAll('.nav button').forEach(b => b.onclick = () => (SEL.clear(), bulkBar([]), view.quick = false, 0) || b.dataset.n === 'o' ? viewOrders() : b.dataset.n === 'r' ? viewReviews() : b.dataset.n === 'c' ? viewCats() : b.dataset.n === 's' ? viewSettings() : b.dataset.n === 'h' ? viewHome() : viewList()); }
+
+/* ---------- 評價審核 ---------- */
+let RVF = 'wait';
+async function viewReviews() {
+  window.scrollTo(0, 0); REDRAW = null;
+  $('#app').innerHTML = nav('r') + '<div class="empty">讀取評價…</div>'; bindNav();
+  let j; try { j = await api('rv_list'); } catch (e) { $('#app').innerHTML = nav('r') + `<div class="empty">${esc(e.message)}</div>`; bindNav(); return; }
+  const stars = n => '<span style="color:#f5a623">' + '★'.repeat(n) + '</span><span style="color:#ddd">' + '★'.repeat(5 - n) + '</span>';
+  const draw = () => {
+    const nW = j.list.filter(r => r.st === '待審核').length;
+    const list = j.list.filter(r => RVF === 'all' || (RVF === 'wait' ? r.st === '待審核' : RVF === 'on' ? r.st === '顯示' : r.st === '隱藏'));
+    const fs = [['wait', '待審核' + (nW ? ' ' + nW : '')], ['on', '顯示中'], ['off', '已隱藏'], ['all', '全部']];
+    $('#app').innerHTML = nav('r') + `<div class="chips" style="margin-top:0">${fs.map(([k, n]) => `<button class="chip${RVF === k ? ' on' : ''}" data-f="${k}">${n}</button>`).join('')}<span class="hint" style="margin:0 0 0 6px;align-self:center">${list.length} 則</span></div>
+      <div class="hint" style="margin:0 0 10px">客人用「訂單編號＋手機」寫的評價會先放在「待審核」，按「顯示」才會出現在商品頁。想邀請客人評價：訂單 → 「⭐ 評價連結」複製訊息貼給客人。</div>
+      <div id="rl">${list.length ? list.map(r => { const d = new Date(r.at); return `<div class="box" style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><b style="font-size:14px">${esc(r.n)}</b><span class="tag ${r.st === '顯示' ? '' : 'b'}" style="${r.st === '顯示' ? 'background:#e6f4ea;color:var(--ok)' : r.st === '待審核' ? 'background:#fff4d6;color:#7a4b00' : ''}">${esc(r.st)}</span></div>
+        <div style="margin-top:6px">${stars(r.s)}　<span class="hint" style="margin:0">${esc(r.nm)}・${esc(r.no)}・${d.getMonth() + 1}/${d.getDate()}</span></div>
+        ${r.t ? `<div style="margin-top:6px;white-space:pre-wrap;font-size:14px">${esc(r.t)}</div>` : '<div class="hint">（只有給星星，沒有寫內容）</div>'}
+        ${r.re ? `<div style="margin-top:8px;background:#f6f6f4;border-radius:8px;padding:8px 10px;font-size:13px;white-space:pre-wrap">店家回覆：${esc(r.re)}</div>` : ''}
+        <div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap">
+          ${r.st !== '顯示' ? `<button class="btn sm solid" data-a="on" data-r="${r.row}">✓ 顯示</button>` : ''}
+          ${r.st !== '隱藏' ? `<button class="btn sm gray" data-a="off" data-r="${r.row}">隱藏</button>` : ''}
+          <button class="btn sm gray" data-a="re" data-r="${r.row}">💬 ${r.re ? '改回覆' : '回覆'}</button></div></div>`; }).join('') : '<div class="empty">沒有評價</div>'}</div>`;
+    bindNav();
+    document.querySelectorAll('.chip[data-f]').forEach(b => b.onclick = () => { RVF = b.dataset.f; draw(); });
+    $('#rl').onclick = async e => {
+      const b = e.target.closest('button[data-a]'); if (!b) return;
+      const r = j.list.find(x => x.row === +b.dataset.r);
+      if (b.dataset.a === 're') {
+        const wrap = document.createElement('div'); wrap.className = 'pk';
+        wrap.innerHTML = `<div class="in" style="padding:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b>回覆 ${esc(r.nm)}</b><button class="btn sm gray" id="mx">✕</button></div>
+          <div class="hint" style="margin:0 0 8px">回覆會顯示在這則評價下面，客人都看得到。</div>
+          <textarea id="mt" rows="4" style="width:100%">${esc(r.re)}</textarea><button class="btn solid" style="width:100%;margin-top:10px" id="ms">儲存回覆</button></div>`;
+        document.body.appendChild(wrap);
+        const close = () => wrap.remove(); $('#mx').onclick = close; wrap.onclick = ev => { if (ev.target === wrap) close(); };
+        $('#ms').onclick = async () => { const sb = $('#ms'); sb.disabled = true; sb.textContent = '儲存中…';
+          try { const re = $('#mt').value.trim(); await api('rv_set', { row: r.row, re }); r.re = re; close(); draw(); toast('已儲存回覆'); }
+          catch (err) { sb.disabled = false; sb.textContent = '儲存回覆'; alert(err.message); } };
+        return;
+      }
+      const st = b.dataset.a === 'on' ? '顯示' : '隱藏';
+      b.disabled = true;
+      try { await api('rv_set', { row: r.row, st }); r.st = st; draw(); toast(st === '顯示' ? '已顯示在商品頁（約 1 分鐘內更新）' : '已隱藏'); }
+      catch (err) { b.disabled = false; alert(err.message); }
+    };
+  };
+  draw();
+}
 
 /* ---------- 首頁：精選區塊、套餐 ---------- */
 function viewHome() {
@@ -1107,6 +1201,28 @@ async function viewOrders() {
     $('#ol').onclick = async e => {
       const b = e.target.closest('button[data-a]'); if (!b) return;
       const o = j.orders.find(x => x.no === b.dataset.no);
+      if (b.dataset.a === 'rvlink') {
+        const site = location.href.replace(/admin\.html.*$/, '');
+        const msg = `${o.name} 您好，感謝您在韋德機車精品購買～\n收到商品後，歡迎幫我們寫個評價 🙏\n${site}#/review/${o.no}\n（輸入下單時的手機就能評價）`;
+        navigator.clipboard?.writeText(msg).then(() => toast('已複製評價邀請訊息，貼到 LINE 給客人')).catch(() => prompt('複製這段訊息', msg));
+        return;
+      }
+      if (b.dataset.a === 'memo') {
+        const wrap = document.createElement('div'); wrap.className = 'pk';
+        wrap.innerHTML = `<div class="in" style="padding:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b>${esc(o.no)} ${esc(o.name)} 的備註</b><button class="btn sm gray" id="mx">✕</button></div>
+          <div class="hint" style="margin:0 0 8px">只有你看得到，客人看不到。例：缺貨改調貨、客人改地址、已退款…</div>
+          <textarea id="mt" rows="5" style="width:100%">${esc(o.memo || '')}</textarea>
+          <button class="btn solid" style="width:100%;margin-top:10px" id="ms">儲存備註</button></div>`;
+        document.body.appendChild(wrap);
+        const close = () => wrap.remove(); $('#mx').onclick = close; wrap.onclick = ev => { if (ev.target === wrap) close(); };
+        setTimeout(() => $('#mt') && $('#mt').focus(), 50);
+        $('#ms').onclick = async () => {
+          const sb = $('#ms'); sb.disabled = true; sb.textContent = '儲存中…';
+          try { const memo = $('#mt').value.trim(); await api('order_memo', { no: o.no, memo }); o.memo = memo; close(); draw(); toast('備註已儲存'); }
+          catch (err) { sb.disabled = false; sb.textContent = '儲存備註'; alert(err.message); }
+        };
+        return;
+      }
       if (b.dataset.a === 'copy') { navigator.clipboard?.writeText(o.code).then(() => toast('已複製寄件代碼')); return; }
       if (b.dataset.a === 'cvs') {
         if (!confirm(`建立 7-11 寄件單？\n${o.name}　${o.where}\n${o.pay}　NT$${o.total}`)) return;
@@ -1120,6 +1236,7 @@ async function viewOrders() {
       }
     };
   };
+  const memoHtml = o => o.memo ? `<div style="margin-top:6px;background:#fff8e1;border-left:3px solid #f0b400;padding:6px 8px;border-radius:4px;font-size:13px;white-space:pre-wrap;line-height:1.5">📝 ${esc(o.memo)}</div>` : '';
   const lst = o => { const t = String(o.lstat || ''); return /未取|退回/.test(t) ? `<b style="color:var(--accent)">⚠️ ${esc(t)}</b>` : esc(t); };
   function otr(o) {
     const d = new Date(o.at), dt = isNaN(d) ? '' : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -1128,8 +1245,9 @@ async function viewOrders() {
       <td>${o.blocked ? '<span class="tag b">黑名單</span>' : ''}${esc(o.name)}<div class="sub"><a href="tel:${esc(o.phone)}">${esc(o.phone)}</a>${o.lineId ? '　LINE：' + esc(o.lineId) : ''}</div></td>
       <td>${esc(o.ship)}｜${esc(o.pay)}<div class="sub">${esc(o.where)}${o.last5 ? '<br>匯款後五碼：' + esc(o.last5) : ''}</div></td>
       <td class="pr">NT$${Number(o.total).toLocaleString()}</td>
-      <td><details><summary>${esc(String(o.detail).split('\n').length)} 項${o.note ? '・有備註' : ''}</summary><pre>${esc(o.detail)}${o.bike ? '\n車款：' + esc(o.bike) : ''}${o.note ? '\n備註：' + esc(o.note) : ''}${o.memo ? '\n處理：' + esc(o.memo) : ''}</pre></details></td>
-      <td><select data-no="${esc(o.no)}">${j.statuses.map(st => `<option${st === o.status ? ' selected' : ''}>${esc(st)}</option>`).join('')}</select></td>
+      <td><details><summary>${esc(String(o.detail).split('\n').length)} 項${o.note ? '・有備註' : ''}</summary><pre>${esc(o.detail)}${o.bike ? '\n車款：' + esc(o.bike) : ''}${o.note ? '\n備註：' + esc(o.note) : ''}</pre></details></td>
+      <td><select data-no="${esc(o.no)}">${j.statuses.map(st => `<option${st === o.status ? ' selected' : ''}>${esc(st)}</option>`).join('')}</select>
+        ${memoHtml(o)}${['已出貨', '已完成'].includes(o.status) ? `<button class="btn sm gray" style="margin-top:6px" data-a="rvlink" data-no="${esc(o.no)}">⭐ 評價連結</button> ` : ''}<button class="btn sm gray" style="margin-top:6px" data-a="memo" data-no="${esc(o.no)}">📝 ${o.memo ? '改備註' : '寫備註'}</button></td>
       <td>${cvs && o.code ? `<span class="code">代碼 <b>${esc(o.code)}</b></span> <button class="btn sm gray" data-a="copy" data-no="${esc(o.no)}">複製</button><div class="sub">${lst(o)}</div>` : ''}
         ${cvs && !o.code && o.status !== '取消' ? `<button class="btn sm solid" data-a="cvs" data-no="${esc(o.no)}">建立 7-11 寄件單</button>` : ''}
         ${String(o.pay) === '取貨付款' && !o.blocked && o.status !== '取消' ? `<div style="margin-top:4px"><button class="btn sm gray" data-a="block" data-no="${esc(o.no)}">未取貨→黑名單</button></div>` : ''}</td></tr>`;
@@ -1142,9 +1260,10 @@ async function viewOrders() {
       <div class="meta">${o.blocked ? '<span class="tag b">黑名單</span>' : ''}${esc(o.name)}　<a href="tel:${esc(o.phone)}">${esc(o.phone)}</a>${o.lineId ? '　LINE：' + esc(o.lineId) : ''}</div>
       <div class="meta">${esc(o.ship)}｜${esc(o.pay)}｜<span class="tot">NT$${Number(o.total).toLocaleString()}</span></div>
       <div class="hint" style="margin:0">${esc(o.where)}${o.last5 ? '　匯款後五碼：' + esc(o.last5) : ''}</div>
-      <details><summary>商品明細${o.note ? '・有備註' : ''}</summary><pre>${esc(o.detail)}${o.bike ? '\n車款：' + esc(o.bike) : ''}${o.note ? '\n備註：' + esc(o.note) : ''}${o.memo ? '\n處理：' + esc(o.memo) : ''}</pre></details>
+      <details><summary>商品明細${o.note ? '・有備註' : ''}</summary><pre>${esc(o.detail)}${o.bike ? '\n車款：' + esc(o.bike) : ''}${o.note ? '\n備註：' + esc(o.note) : ''}</pre></details>
       ${cvs && o.code ? `<div class="code">寄件代碼 <b>${esc(o.code)}</b><button class="btn sm gray" data-a="copy" data-no="${esc(o.no)}">複製</button><div class="hint" style="margin:2px 0 0">${lst(o)}</div></div>` : ''}
-      <div class="acts2">${cvs && !o.code && o.status !== '取消' ? `<button class="btn sm solid" data-a="cvs" data-no="${esc(o.no)}">建立 7-11 寄件單</button>` : ''}
+      ${memoHtml(o)}
+      <div class="acts2">${['已出貨', '已完成'].includes(o.status) ? `<button class="btn sm gray" data-a="rvlink" data-no="${esc(o.no)}">⭐ 評價連結</button>` : ''}<button class="btn sm gray" data-a="memo" data-no="${esc(o.no)}">📝 ${o.memo ? '改備註' : '寫備註'}</button>${cvs && !o.code && o.status !== '取消' ? `<button class="btn sm solid" data-a="cvs" data-no="${esc(o.no)}">建立 7-11 寄件單</button>` : ''}
         ${String(o.pay) === '取貨付款' && !o.blocked && o.status !== '取消' ? `<button class="btn sm gray" data-a="block" data-no="${esc(o.no)}">未取貨→加黑名單</button>` : ''}</div></div>`;
   }
   draw();
