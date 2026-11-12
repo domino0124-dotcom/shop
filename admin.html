@@ -259,6 +259,7 @@ function firstView(h) {
   it ? viewEdit(it) : viewList();
 }
 async function loadRows() {
+  guardHistory();
   const cached = ls.get('wade_admin_rows', null), h0 = location.hash;
   const want = h0.match(/^#edit\/(.+)$/);
   if (cached) { ROWS = {}; cached.forEach(r => ROWS[r.id] = r); }
@@ -299,7 +300,7 @@ function viewList(keep) {   // keep = 只更新下面清單，搜尋框不重畫
   if (keep !== true) keep = false;
   if (keep && !$('#lv')) keep = false;
   document.title = '商城後台｜韋德機車精品';
-  if (location.hash && !(history.state && history.state.edit)) history.replaceState(null, '', location.pathname + location.search);
+  if (location.hash && !(history.state && history.state.edit)) history.replaceState(history.state, '', location.pathname + location.search);
   EDITING = false;
   const tabs = [['all', '全部'], ['c', '我新增的'], ['m', '已修改'], ['off', '已下架']];
   let list = allItems();
@@ -622,11 +623,28 @@ function backToList() {
   if (history.state && history.state.edit) history.back();   // 交給 popstate 處理
   else { EDITING = false; viewList(); requestAnimationFrame(() => window.scrollTo(0, LISTY)); }
 }
+// 防止「上一頁」直接跳出後台：最底下放一個記號，退到那裡時提示，再按一次才真的離開
+function guardHistory() {
+  if (history.state && (history.state.tab || history.state.edit || history.state.root)) return;
+  const full = location.href;
+  history.replaceState({ root: 1 }, '', location.pathname + location.search);
+  history.pushState({ tab: 'p' }, '', full);
+}
+let LASTBACK = 0;
 addEventListener('popstate', () => {
   if (!PROD || !pw) return;
+  const st = history.state || {};
   const m = location.hash.match(/^#edit\/(.+)$/);
   if (m) { const id = decodeURIComponent(m[1]); const it = allItems().find(x => x.i === id); if (it) return viewEdit(it, true); return; }
-  if (EDITING) { EDITING = false; viewList(); requestAnimationFrame(() => window.scrollTo(0, LISTY)); }
+  if (document.querySelector('.pk')) document.querySelectorAll('.pk').forEach(x => x.remove());
+  if (EDITING) { EDITING = false; viewList(); requestAnimationFrame(() => window.scrollTo(0, LISTY)); if (st.root) history.pushState({ tab: 'p' }, '', location.pathname + location.search); return; }
+  if (st.root) {
+    if (Date.now() - LASTBACK < 3000) { history.back(); return; }
+    LASTBACK = Date.now(); toast('再按一次「上一頁」就會離開後台');
+    history.pushState({ tab: CURTAB }, '', location.pathname + location.search); return;
+  }
+  const k = st.tab || 'p';
+  if (k !== CURTAB || !$('#app .nav')) showTab(k);
 });
 async function viewEdit(x, fromHistory) {
   if (!fromHistory) {
@@ -883,8 +901,11 @@ async function viewEdit(x, fromHistory) {
   };
 }
 
-function nav(on) { return `<div class="nav">${[['p', '商品'], ['o', '訂單'], ['r', '評價'], ['h', '首頁'], ['c', '分類'], ['s', '設定']].map(([k, n]) => `<button data-n="${k}" class="${on === k ? 'on' : ''}">${n}</button>`).join('')}</div>`; }
-function bindNav() { document.querySelectorAll('.nav button').forEach(b => b.onclick = () => (SEL.clear(), bulkBar([]), view.quick = false, 0) || b.dataset.n === 'o' ? viewOrders() : b.dataset.n === 'r' ? viewReviews() : b.dataset.n === 'c' ? viewCats() : b.dataset.n === 's' ? viewSettings() : b.dataset.n === 'h' ? viewHome() : viewList()); }
+let CURTAB = 'p';
+function nav(on) { CURTAB = on; return `<div class="nav">${[['p', '商品'], ['o', '訂單'], ['r', '評價'], ['h', '首頁'], ['c', '分類'], ['s', '設定']].map(([k, n]) => `<button data-n="${k}" class="${on === k ? 'on' : ''}">${n}</button>`).join('')}</div>`; }
+// 切換分頁（商品／訂單／評價…）會記在瀏覽器的「上一頁」裡
+function showTab(k) { SEL.clear(); bulkBar([]); view.quick = false; ({ o: viewOrders, r: viewReviews, c: viewCats, s: viewSettings, h: viewHome })[k] ? ({ o: viewOrders, r: viewReviews, c: viewCats, s: viewSettings, h: viewHome })[k]() : viewList(); }
+function bindNav() { document.querySelectorAll('.nav button').forEach(b => b.onclick = () => { const k = b.dataset.n; if (k !== CURTAB) history.pushState({ tab: k }, '', location.pathname + location.search); showTab(k); }); }
 
 /* ---------- 重複商品：網站新增的 vs 蝦皮同步來的，名稱很像就列出來 ---------- */
 function dupNorm(n) { return String(n || '').toLowerCase().replace(/韋德機車精品/g, '').replace(/[\s\-_/|｜,，.。、:：;；!！?？()（）\[\]【】「」'"#＃*＊~～+＋]/g, ''); }
