@@ -86,7 +86,8 @@
     text = isStr(text) ? text : '';
     const imgs = [...text.matchAll(IMG_RE)].map(m => m[1]);
     const lines = [];
-    for (const ln of text.replace(IMG_RE, '').split('\n')) {
+    // 圖片留在原本的位置（[[img:ID]] 自己一行），商城照原順序顯示
+    for (const ln of text.replace(IMG_RE, (_, id) => '\n[[img:' + id + ']]\n').split('\n')) {
       const s0 = ln.trim().replace(/^[●•]+/, '').trim();
       if (!s0) { if (lines.length && lines[lines.length - 1] !== '') lines.push(''); continue; }
       if (DROP.some(k => s0.includes(k))) continue;

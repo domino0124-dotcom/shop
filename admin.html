@@ -649,7 +649,7 @@ async function viewEdit(x, fromHistory) {
     <input type="file" id="vfile" accept="video/*" hidden>
     <button class="btn sm" style="margin-top:8px" id="vup">📤 直接上傳影片檔</button>
     <div class="hint">可以直接上傳手機裡的影片（上限 200MB，像蝦皮一樣），或貼 YouTube／Shorts、IG Reels、FB、TikTok 連結。最多 5 支。<br>上傳的影片要等雲端硬碟處理幾分鐘，才能在商城播放。</div><div class="hint" id="vdk"></div></div>
-  <div class="box"><h2>商品說明</h2><textarea id="d" rows="7" placeholder="特色、適用車種、注意事項…">${esc(it.d || '')}</textarea></div>
+  <div class="box"><h2>商品說明</h2><textarea id="d" rows="7" placeholder="特色、適用車種、注意事項…">${esc(it.d || '')}</textarea><div class="hint">像 [[img:…]] 這樣的一行是「圖片的位置」（從蝦皮帶過來的），可以整行上下移動或刪掉。</div></div>
   </div></div>
   <div class="err" id="er"></div>
   <div class="bar">

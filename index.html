@@ -590,10 +590,20 @@ function viewProduct(p) {
 
   loadDesc().then(() => {
     const dd = DESC[p.i]; const el = $('#dbody'); if (!el) return;
-    const d = [p.d != null ? p.d : (dd ? dd[0] : ''), dd ? dd[1] : []];
+    const nm = s => String(s || '').replace(/\[\[img:[^\]]+\]\]/g, '').replace(/\s+/g, '');
+    // 後台改過說明、但文字跟蝦皮一樣（只是舊版沒有圖片位置）→ 用蝦皮的版本，圖片才會在原位
+    const txt = p.d != null && !(dd && !/\[\[img:/.test(p.d) && nm(p.d) === nm(dd[0])) ? p.d : (dd ? dd[0] : '');
+    const d = [txt, dd ? dd[1] : []];
     if (!d[0] && !d[1].length) { el.textContent = '詳細規格與適用車種歡迎 LINE 詢問。'; return; }
     el.className = '';
-    el.innerHTML = (d[0] ? `<pre>${esc(d[0])}</pre>` : '') + d[1].map(id => `<img loading="lazy" src="${img(id)}" alt="">`).join('');
+    // 文字裡的 [[img:ID]] 就在那個位置放圖（跟蝦皮一樣圖文穿插）；沒標位置的圖放最後
+    const used = new Set(), parts = []; let buf = [];
+    const flush = () => { const t = buf.join('\n').replace(/^\s*\n|\n\s*$/g, ''); if (t.trim()) parts.push(`<pre>${esc(t)}</pre>`); buf = []; };
+    String(d[0] || '').split('\n').forEach(ln => { const m = ln.trim().match(/^\[\[img:([^\]\s]+)\]\]$/);
+      if (m) { flush(); used.add(m[1]); parts.push(`<img loading="lazy" src="${img(m[1])}" alt="">`); } else buf.push(ln); });
+    flush();
+    d[1].filter(id => !used.has(id)).forEach(id => parts.push(`<img loading="lazy" src="${img(id)}" alt="">`));
+    el.innerHTML = parts.join('');
   });
 }
 
