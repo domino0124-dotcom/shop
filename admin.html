@@ -39,7 +39,7 @@ label.f>span{display:block;font-size:13px;color:var(--ink2);margin-bottom:4px}
 .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .list{display:grid;gap:8px}
 .it{display:grid;grid-template-columns:60px 1fr auto;gap:10px;align-items:center;background:#fff;border-radius:10px;padding:8px;box-shadow:var(--shadow)}
-.it img{width:60px;height:60px;object-fit:cover;border-radius:7px;background:#eee}
+.it img{width:60px;height:60px;object-fit:cover;border-radius:7px;background:#eee;cursor:zoom-in}
 .it .nm{font-size:13.5px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .it .pr{font-size:13px;color:var(--accent);font-weight:700;margin-top:2px}
 .it .acts{display:flex;flex-direction:column;gap:6px}
@@ -50,7 +50,7 @@ label.f>span{display:block;font-size:13px;color:var(--ink2);margin-bottom:4px}
 .imgs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 @media(min-width:600px){.imgs{grid-template-columns:repeat(6,1fr)}}
 .imgs .ph{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:#eee;border:1px solid var(--line)}
-.imgs .ph img{width:100%;height:100%;object-fit:cover}
+.imgs .ph img{width:100%;height:100%;object-fit:cover;cursor:zoom-in}
 .imgs .ph .x{position:absolute;top:3px;right:3px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:13px;line-height:24px;padding:0}
 .imgs .ph .l{position:absolute;bottom:3px;left:3px;height:22px;border-radius:6px;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:0 6px}
 .imgs .ph .cv{position:absolute;bottom:3px;left:3px;background:var(--accent);color:#fff;font-size:11px;border-radius:5px;padding:0 6px}
@@ -155,7 +155,7 @@ html,body{overflow-x:hidden}
 .tbl td{padding:8px 10px;border-top:1px solid var(--line);vertical-align:middle}
 .tbl tr:hover td{background:#fafaf8}
 .tbl tr.off td{opacity:.55}
-.tbl td img{width:52px;height:52px;object-fit:cover;border-radius:6px;background:#eee;display:block}
+.tbl td img{width:52px;height:52px;object-fit:cover;border-radius:6px;background:#eee;display:block;cursor:zoom-in}
 .tbl .nm{cursor:pointer;line-height:1.4}
 a.nm{color:inherit;text-decoration:none;display:block}
 a.btn{display:inline-grid;place-items:center;text-decoration:none}.tbl .nm:hover{color:var(--accent)}
@@ -367,6 +367,9 @@ function viewList(keep) {   // keep = 只更新下面清單，搜尋框不重畫
   if ($('#selall')) $('#selall').onchange = e => { vis.forEach(i => e.target.checked ? SEL.add(i) : SEL.delete(i)); markSel(); bulkBar(list); };
   markSel(); bulkBar(list);
   $('#list').onclick = async e => {
+    const zi = e.target.closest('[data-row] img');
+    if (zi && !e.target.closest('a,button')) { e.stopPropagation(); const x = list.find(y => y.i === zi.closest('[data-row]').dataset.row);
+      if (x) { const ims = [...(x.im || []), ...Object.values(x.oi || {})].filter((v, k, a) => v && a.indexOf(v) === k); return lightbox(ims, 0, x.n); } }
     const cb = e.target.closest('.catb[data-cat]');
     if (cb) {
       e.preventDefault(); const x = list.find(y => y.i === cb.dataset.cat); if (!x) return;
@@ -724,6 +727,7 @@ async function viewEdit(x, fromHistory) {
   }
   drawImgs();
   $('#imgs').onclick = e => {
+    if (e.target.matches('.ph img')) { const k = [...$('#imgs').querySelectorAll('.ph img')].indexOf(e.target); return lightbox(ims, k); }
     const xb = e.target.closest('[data-x]'), lb = e.target.closest('[data-l]');
     if (xb) { ims.splice(+xb.dataset.x, 1); drawImgs(); }
     if (lb) { const k = +lb.dataset.l; [ims[k - 1], ims[k]] = [ims[k], ims[k - 1]]; drawImgs(); }
@@ -751,8 +755,9 @@ async function viewEdit(x, fromHistory) {
   };
   const drawPrev = () => {
     $('#dprev').innerHTML = dta.value.split('\n').map(ln => { const m = ln.trim().match(/^\[\[img:([^\]\s]+)\]\]$/);
-      return m ? `<img src="${esc(img(m[1]))}" style="max-width:100%;display:block;margin:6px 0;border-radius:6px" alt="">` : `<div style="white-space:pre-wrap;font-size:14px;min-height:1em">${esc(ln)}</div>`; }).join('');
+      return m ? `<img src="${esc(img(m[1]))}" data-zm="${esc(m[1])}" style="max-width:100%;display:block;margin:6px 0;border-radius:6px;cursor:zoom-in" alt="">` : `<div style="white-space:pre-wrap;font-size:14px;min-height:1em">${esc(ln)}</div>`; }).join('');
   };
+  $('#dprev').onclick = e => { const t = e.target.closest('img[data-zm]'); if (!t) return; const all = [...$('#dprev').querySelectorAll('img[data-zm]')].map(x => x.dataset.zm); lightbox(all, all.indexOf(t.dataset.zm)); };
   $('#dpv').onclick = () => { const pv = $('#dprev'); pv.hidden = !pv.hidden; $('#dpv').textContent = pv.hidden ? '👀 預覽' : '收起預覽'; if (!pv.hidden) drawPrev(); };
   dta.addEventListener('input', () => { if (!$('#dprev').hidden) drawPrev(); });
   $('#file').onchange = async e => {
@@ -906,6 +911,29 @@ function nav(on) { CURTAB = on; return `<div class="nav">${[['p', '商品'], ['o
 // 切換分頁（商品／訂單／評價…）會記在瀏覽器的「上一頁」裡
 function showTab(k) { SEL.clear(); bulkBar([]); view.quick = false; ({ o: viewOrders, r: viewReviews, c: viewCats, s: viewSettings, h: viewHome })[k] ? ({ o: viewOrders, r: viewReviews, c: viewCats, s: viewSettings, h: viewHome })[k]() : viewList(); }
 function bindNav() { document.querySelectorAll('.nav button').forEach(b => b.onclick = () => { const k = b.dataset.n; if (k !== CURTAB) history.pushState({ tab: k }, '', location.pathname + location.search); showTab(k); }); }
+
+/* ---------- 看大圖：點縮圖放大，左右切換（手機可以滑） ---------- */
+function lightbox(ims, k, title) {
+  if (!ims || !ims.length) return;
+  const w = document.createElement('div');
+  w.style.cssText = 'position:fixed;inset:0;z-index:200;background:#0b0b0b;display:flex;flex-direction:column;color:#fff;user-select:none';
+  w.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:14px"><span id="lbn" style="flex:none"></span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.8">${esc(title || '')}</span>
+    <a id="lbo" target="_blank" rel="noopener" style="color:#fff;font-size:13px;opacity:.8">原圖 ↗</a><button id="lbx" style="border:0;background:none;color:#fff;font-size:26px;cursor:pointer;line-height:1">✕</button></div>
+    <div id="lbs" style="flex:1;position:relative;display:grid;place-items:center;overflow:hidden"><img id="lbi" style="max-width:100%;max-height:100%;object-fit:contain" alt="">
+    ${ims.length > 1 ? `<button id="lbp" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);width:44px;height:64px;border:0;border-radius:10px;background:rgba(255,255,255,.15);color:#fff;font-size:28px;cursor:pointer">‹</button>
+    <button id="lbnx" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);width:44px;height:64px;border:0;border-radius:10px;background:rgba(255,255,255,.15);color:#fff;font-size:28px;cursor:pointer">›</button>` : ''}</div>
+    ${ims.length > 1 ? `<div id="lbt" style="display:flex;gap:6px;padding:10px;overflow-x:auto;justify-content:center">${ims.map((id, j) => `<img src="${esc(img(id, 1))}" data-j="${j}" style="width:52px;height:52px;object-fit:cover;border-radius:6px;cursor:pointer;flex:none;border:2px solid transparent" alt="">`).join('')}</div>` : ''}`;
+  document.body.appendChild(w);
+  const show = j => { k = (j + ims.length) % ims.length; const big = img(ims[k]); $('#lbi').src = big; $('#lbo').href = big; $('#lbn').textContent = `${k + 1} / ${ims.length}`;
+    w.querySelectorAll('#lbt img').forEach((t, i) => t.style.borderColor = i === k ? '#fff' : 'transparent'); };
+  const close = () => { w.remove(); removeEventListener('keydown', key); };
+  const key = e => { if (e.key === 'Escape') close(); if (e.key === 'ArrowLeft') show(k - 1); if (e.key === 'ArrowRight') show(k + 1); };
+  addEventListener('keydown', key);
+  w.onclick = e => { if (e.target.id === 'lbx' || e.target.id === 'lbs') return close(); if (e.target.id === 'lbp') show(k - 1); if (e.target.id === 'lbnx') show(k + 1); const t = e.target.closest('#lbt img'); if (t) show(+t.dataset.j); };
+  let sx = null; $('#lbs').addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
+  $('#lbs').addEventListener('touchend', e => { if (sx == null) return; const dx = e.changedTouches[0].clientX - sx; if (Math.abs(dx) > 40) show(k + (dx < 0 ? 1 : -1)); sx = null; });
+  show(k);
+}
 
 /* ---------- 重複商品：網站新增的 vs 蝦皮同步來的，名稱很像就列出來 ---------- */
 function dupNorm(n) { return String(n || '').toLowerCase().replace(/韋德機車精品/g, '').replace(/[\s\-_/|｜,，.。、:：;；!！?？()（）\[\]【】「」'"#＃*＊~～+＋]/g, ''); }
