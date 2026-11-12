@@ -77,6 +77,7 @@ select.sort{font:inherit;font-size:13px;border:1px solid var(--line);background:
 @media(max-width:640px){.sym{grid-template-columns:1fr}.sym .qr{display:none}}
 .hs{margin:16px 0 6px}
 .hs h2{font-size:17px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.hs h2 .clr{margin-left:auto;border:0;background:none;color:var(--ink2);font-size:12.5px;font-weight:400;cursor:pointer;padding:4px}
 .hs h2:before{content:"";width:4px;height:18px;border-radius:2px;background:var(--accent)}
 .hrow{display:grid;grid-auto-flow:column;grid-auto-columns:42%;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px;scrollbar-width:none}
 .hrow::-webkit-scrollbar{display:none}
@@ -316,7 +317,7 @@ function loadExtras() {
   fetch(CFG.gasUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'shop_order', op: 'items' }) })
     .then(r => r.json()).then(res => {
       if (!res.ok) throw new Error(res.error);
-      const ex = { at: Date.now(), items: res.items || [], hidden: res.hidden || [] };
+      const ex = { at: Date.now(), items: res.items || [], hidden: res.hidden || [], hot: res.hot || [] };
       const old = store.get('wade_extras', null);
       const changed = !old || JSON.stringify([old.items, old.hidden]) !== JSON.stringify([ex.items, ex.hidden]);
       store.set('wade_extras', ex);
@@ -474,12 +475,16 @@ function viewList() {
   const title = state.q ? `搜尋「${esc(state.q)}」` : (cat ? esc(cat.n) : '全部商品');
   const symCat = (CFG.categories || []).map(c => c.n).find(n => /SYM/i.test(n) && /新車/.test(n));
   const sym = CFG.symHide ? '' : (!state.q && symCat && state.cat === symCat) ? symBanner() : '';
-  const home = !state.cat && !state.q ? (CFG.home || []).map(sc => ({ t: sc.t, items: sc.ids.map(i => BYID[i]).filter(Boolean) })).filter(sc => sc.items.length) : [];
-  $('#app').innerHTML = sym + home.map(sc => `<section class="hs"><h2>${esc(sc.t)}</h2><div class="hrow">${sc.items.map(card).join('')}</div></section>`).join('') +
+  const hot = ((store.get('wade_extras', null) || {}).hot || []).map(i => BYID[i]).filter(p => p && !p.so).slice(0, 10);
+  const home = !state.cat && !state.q ? [{ t: '最近看過', seen: 1, items: store.get('wade_seen', []).map(i => BYID[i]).filter(Boolean).slice(0, 10) },
+    { t: '🔥 熱門商品', items: hot.length >= 4 ? hot : [] }]
+    .concat((CFG.home || []).map(sc => ({ t: sc.t, items: sc.ids.map(i => BYID[i]).filter(Boolean) }))).filter(sc => sc.items.length) : [];
+  $('#app').innerHTML = sym + home.map(sc => `<section class="hs"><h2>${esc(sc.t)}${sc.seen ? '<button class="clr" id="seenx">清除</button>' : ''}</h2><div class="hrow">${sc.items.map(card).join('')}</div></section>`).join('') +
     `<div class="bar"><h1>${title}<small>${list.length} 件</small></h1>
     <select class="sort" id="sort"><option value="def">最新上架</option><option value="asc">價格低→高</option><option value="desc">價格高→低</option></select></div>
     ${list.length ? `<div class="grid" id="grid">${list.slice(state.pg * PS, state.pg * PS + PS).map(card).join('')}</div>` : `<div class="empty">找不到相關商品<br>換個關鍵字，或 <a href="${CFG.line}" target="_blank" rel="noopener">LINE 詢問我們</a></div>`}
     ${spager(list.length)}`;
+  if ($('#seenx')) $('#seenx').onclick = e => { e.preventDefault(); store.set('wade_seen', []); e.target.closest('.hs').remove(); };
   $('#sort').value = state.sort;
   $('#sort').onchange = e => { state.sort = e.target.value; state.pg = 0; viewList(); };
   const toPage = k => { state.pg = k; viewList(); const g = $('#grid'); window.scrollTo(0, g ? g.getBoundingClientRect().top + window.scrollY - 170 : 0); };
@@ -510,6 +515,16 @@ function spager(total) {
 /* ---------- product view ---------- */
 function viewProduct(p) {
   markCat(); document.title = p.n + '｜韋德機車精品';
+  // 記住這位客人看過的商品（只存在客人自己的手機／電腦），首頁「最近看過」會排在最前面
+  store.set('wade_seen', [p.i].concat(store.get('wade_seen', []).filter(i => i !== p.i)).slice(0, 30));
+  // 熱門商品統計：同一個人同一天同一個商品只算一次
+  try {
+    const day = new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10), vd = store.get('wade_vd', {});
+    if (CFG.gasUrl && vd[p.i] !== day) {
+      Object.keys(vd).forEach(k => { if (vd[k] !== day) delete vd[k]; }); vd[p.i] = day; store.set('wade_vd', vd);
+      fetch(CFG.gasUrl, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'shop_order', op: 'view', id: p.i, n: p.n.slice(0, 60) }) }).catch(() => {});
+    }
+  } catch (e) {}
   // 規格拆成 1 或 2 層
   const split = p.v.map(v => v[0] ? v[0].split(',').map(s => s.trim()) : []);
   const depth = Math.max(...split.map(s => s.length));
