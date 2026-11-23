@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
+<!-- 商城後台 v1（2026-11-23）：上下架連點不卡 -->
 <title>商城後台｜韋德機車精品</title>
 <meta name="theme-color" content="#16181d">
 <style>
@@ -176,7 +177,7 @@ a.btn{display:inline-grid;place-items:center;text-decoration:none}.tbl .nm:hover
 </style>
 </head>
 <body>
-<header><div class="hd"><a class="home" href="#" id="home" title="回後台首頁"><span id="brand"><b>W</b></span><h1>商城後台</h1></a><a href="./" target="_blank">看商城 ↗</a></div></header>
+<header><div class="hd"><a class="home" href="#" id="home" title="回後台首頁"><span id="brand"><b>W</b></span><h1>商城後台 <small style="font-size:11px;font-weight:400;opacity:.6">v1</small></h1></a><a href="./" target="_blank">看商城 ↗</a></div></header>
 <main id="app"><div class="empty">載入中…</div></main>
 <div class="toast" id="toast"></div>
 <input type="file" id="file" accept="image/*" multiple hidden>
@@ -403,10 +404,35 @@ function viewList(keep) {   // keep = 只更新下面清單，搜尋框不重畫
     const b = e.target.closest('button[data-a]'); if (!b) return;
     const id = b.dataset.id, it = list.find(x => x.i === id);
     if (b.dataset.a === 'edit') return viewEdit(it);
-    b.disabled = true;
-    try { await api('toggle', { id, on: !it._on, name: it.n }); toast(it._on ? '已下架' : '已上架'); await reloadRowsQuiet(); viewList(); }
-    catch (err) { toast(err.message); b.disabled = false; }
+    quickToggle(it);
   };
+}
+/* 上架／下架：畫面馬上變，背景合併成一批送出（連續點很多個也不會卡） */
+const TOGQ = new Map(); let togTimer = null, togN = 0;
+function quickToggle(x) {
+  const on = !x._on, old = ROWS[x.i];
+  x._on = on;
+  ROWS[x.i] = old ? { ...old, on } : { id: x.i, on, src: '蝦皮', t: Date.now(), item: null };
+  TOGQ.set(x.i, { id: x.i, on, name: x.n, old: TOGQ.has(x.i) ? TOGQ.get(x.i).old : old });
+  document.querySelectorAll(`[data-row="${CSS.escape(x.i)}"]`).forEach(el => {
+    const t = document.createElement(el.tagName === 'TR' ? 'tbody' : 'div'); t.innerHTML = el.tagName === 'TR' ? trow(x) : row(x);
+    const nw = t.firstElementChild; el.replaceWith(nw);
+    const c = nw.querySelector('input.sel'); if (c) c.checked = SEL.has(x.i); nw.classList.toggle('sel', SEL.has(x.i));
+  });
+  toast(on ? '已上架' : '已下架');
+  SAVEQ.n++; togN++; drawQ();   // 先顯示「儲存中」，0.8 秒內再點的會一起送
+  clearTimeout(togTimer);
+  togTimer = setTimeout(() => {
+    const batch = [...TOGQ.values()]; TOGQ.clear(); SAVEQ.n -= togN; togN = 0;
+    for (let k = 0; k < batch.length; k += 200) {
+      const part = batch.slice(k, k + 200);
+      queueSave(() => api('toggle_many', { list: part.map(({ id, on, name }) => ({ id, on, name })) })).catch(err => {
+        part.forEach(({ id, old }) => { if (old) ROWS[id] = old; else delete ROWS[id]; });
+        alert('上下架沒存成功：' + err.message + '\n畫面已還原，請再試一次'); if ($('#lv')) viewList(true);
+      });
+    }
+    drawQ();
+  }, 800);
 }
 function row(x) {
   const tag = (x._kind === 'c' ? '<span class="tag c">新增</span>' : x._kind === 'm' ? '<span class="tag m">已修改</span>' : '') + (x._on ? '' : '<span class="tag h">下架</span>');
@@ -591,7 +617,7 @@ function drawQ() {
   let el = document.getElementById('saveq');
   if (!el) { el = document.createElement('div'); el.id = 'saveq'; el.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:60;background:#16181d;color:#fff;border-radius:999px;padding:9px 16px;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.2)'; document.body.appendChild(el); }
   el.hidden = !SAVEQ.n; el.textContent = `儲存中，還有 ${SAVEQ.n} 筆…`;
-  if (!SAVEQ.n && drawQ.was) toast('分類都存好了');
+  if (!SAVEQ.n && drawQ.was) toast('都存好了');
   drawQ.was = SAVEQ.n;
 }
 window.addEventListener('beforeunload', e => { if (SAVEQ.n) { e.preventDefault(); e.returnValue = ''; } });
