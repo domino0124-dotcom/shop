@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
-<!-- 商城後台 v1（2026-11-23）：上下架連點不卡 -->
+<!-- 商城後台 v2（2026-11-25）：勾選後逐一改價格 ／ v1：上下架連點不卡 -->
 <title>商城後台｜韋德機車精品</title>
 <meta name="theme-color" content="#16181d">
 <style>
@@ -177,7 +177,7 @@ a.btn{display:inline-grid;place-items:center;text-decoration:none}.tbl .nm:hover
 </style>
 </head>
 <body>
-<header><div class="hd"><a class="home" href="#" id="home" title="回後台首頁"><span id="brand"><b>W</b></span><h1>商城後台 <small style="font-size:11px;font-weight:400;opacity:.6">v1</small></h1></a><a href="./" target="_blank">看商城 ↗</a></div></header>
+<header><div class="hd"><a class="home" href="#" id="home" title="回後台首頁"><span id="brand"><b>W</b></span><h1>商城後台 <small style="font-size:11px;font-weight:400;opacity:.6">v2</small></h1></a><a href="./" target="_blank">看商城 ↗</a></div></header>
 <main id="app"><div class="empty">載入中…</div></main>
 <div class="toast" id="toast"></div>
 <input type="file" id="file" accept="image/*" multiple hidden>
@@ -312,7 +312,7 @@ function viewList(keep) {   // keep = 只更新下面清單，搜尋框不重畫
   if (view.cat) list = list.filter(x => x.c === view.cat);
   if (view.sk) { const k = view.sk, d = view.sd; list = [...list].sort((a, b) => (k === 'p' ? a.p - b.p : String(a[k] || '').localeCompare(String(b[k] || ''), 'zh-Hant')) * d); }
   const W = wide(); const pageList = pageOf(list);
-  if (view.quick) return viewQuick(list, cnt, tabs);
+  if (view.quick) return viewQuick(view.selOnly ? allItems().filter(x => view.selOnly.includes(x.i)) : list, cnt, tabs);
   const sh = (k, n) => `<th data-s="${k}">${n}${view.sk === k ? (view.sd > 0 ? ' ▲' : ' ▼') : ''}</th>`;
   const body = !list.length ? '<div class="empty">沒有商品</div>' : W
     ? `<table class="tbl"><thead><tr><th><input type="checkbox" class="sel" id="selall" title="全選這一頁"></th><th></th>${sh('n', '商品名稱')}${sh('c', '分類')}${sh('p', '價格')}<th>狀態</th><th></th></tr></thead><tbody>${pageList.map(trow).join('')}</tbody></table>`
@@ -459,6 +459,7 @@ async function saveMany(items, btn) {   // items: [{item, on, src}]
 /* ---------- 勾選後的批次工具列 ---------- */
 function bulkBar(list) {
   let bar = $('#bulk');
+  if (view.quick) { if (bar) bar.remove(); document.body.classList.remove('has-bulk'); return; }   // 快速編輯時不擋住「儲存變更」
   if (!SEL.size) { if (bar) bar.remove(); document.body.classList.remove('has-bulk'); return; }
   document.body.classList.add('has-bulk');
   if (!bar) {
@@ -466,6 +467,7 @@ function bulkBar(list) {
     bar.className = 'bulk min';
     bar.innerHTML = `<b id="bn"></b>
       <button class="btn sm main" id="bmv">📁 移到分類…</button>
+      <button class="btn sm main" id="bpr">✏️ 逐一改價格</button>
       <button class="btn sm gray" id="bmore">其他修改 ▾</button>
       <span class="more2"><span class="grp"><select id="bp"><option value="">價格不變</option><option value="set">價格設為</option><option value="add">價格加減（元）</option><option value="pct">價格打折（%）</option></select><input id="bpv" type="number" inputmode="numeric" placeholder="" hidden>
         <select id="br" hidden><option value="1">取整到 1 元</option><option value="10">取整到 10 元</option></select></span>
@@ -481,6 +483,7 @@ function bulkBar(list) {
     $('#bsp').onchange = () => { const v = $('#bsp').value; $('#bspv').hidden = !(v === 'sc' || v === 'sh'); if (!$('#bspv').hidden) $('#bspv').focus(); };
     $('#bc').onclick = () => pickCat($('#bc').dataset.c, c => { $('#bc').dataset.c = c; $('#bc').textContent = '分類：' + c; });
     $('#bx').onclick = () => { SEL.clear(); REDRAW && REDRAW(); bulkBar([]); };
+    $('#bpr').onclick = () => { view.selOnly = [...SEL]; view.quick = true; view.pg = 0; viewList(); window.scrollTo(0, 0); };
     $('#bdel').onclick = async () => {
       const all = {}; allItems().forEach(x => all[x.i] = x); const ids = [...SEL].filter(i => all[i]);
       const mine = ids.filter(i => !BASE[i]), shp = ids.filter(i => BASE[i]);
@@ -558,6 +561,7 @@ function viewQuick(list, cnt, tabs) {
       <td style="width:100px"><input data-id="${esc(x.i)}" data-k="${k}" data-f="2" type="number" inputmode="numeric" value="${v[2]}"></td></tr>`).join('')).join('');
   $('#app').innerHTML = nav('p') + `<div class="tbar"><input id="q" type="search" placeholder="搜尋商品名稱" value="${esc(view.q)}">
       <select id="cf"><option value="">全部分類</option>${catList().map(c => `<option${c === view.cat ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
+    ${view.selOnly ? `<div class="tip" style="margin:0 0 10px">只列出你勾選的 <b>${list.length}</b> 件商品，每個價格可以分別改。改完按下面「儲存變更」。</div>` : ''}
     <div class="box" style="padding:12px 14px"><b>快速編輯</b>　<span class="hint" style="margin:0">直接改分類、價格、庫存，改過的格子會變黃色。按 Enter 跳到下一列。分類欄標題的選單可以把這頁全部改成同一個分類。</span></div>
     ${show.length ? `<table class="tbl qe"><thead><tr><th></th><th>商品</th><th>分類<br><select id="callq" style="margin-top:4px;font-weight:400"><option value="">這頁全部改成…</option>${copt('')}</select></th><th>規格</th><th>價格</th><th>庫存</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="empty">沒有商品</div>'}
     ${list.length > view.ps ? pager(list) : ''}
@@ -573,7 +577,8 @@ function viewQuick(list, cnt, tabs) {
   qq.oninput = e => { if (comp || e.isComposing) return; run(); };
   $('#cf').onchange = e => leave(() => { view.cat = e.target.value; view.pg = 0; viewList(); });
   bindPager(() => viewList(), leave);
-  $('#qx').onclick = () => leave(() => { view.quick = false; viewList(); });
+  const exitQ = () => { const was = view.selOnly; view.quick = false; view.selOnly = null; if (was) { SEL.clear(); bulkBar([]); } viewList(); };
+  $('#qx').onclick = () => leave(exitQ);
   const tb = document.querySelector('.qe tbody');
   if (tb) {
     tb.oninput = e => {
@@ -601,7 +606,7 @@ function viewQuick(list, cnt, tabs) {
     const b = $('#qs'); b.disabled = true;
     try {
       await saveMany(ids.map(i => { const it = cleanItem(byId[i]); if (CH[i]) it.v = CH[i].map(v => [v[0], Number(v[1]), v[2] === '' ? '' : Number(v[2]), v[3]]); if (CC[i]) it.c = CC[i]; return { item: it, on: byId[i]._on, src: BASE[i] ? 'shopee' : 'custom' }; }), b);
-      await reloadRowsQuiet(); toast(`已儲存 ${ids.length} 件，網站約 5 分鐘內更新`); viewList();
+      await reloadRowsQuiet(); toast(`已儲存 ${ids.length} 件，網站約 1～2 分鐘內更新`); if (view.selOnly) exitQ(); else viewList();
     } catch (err) { alert(err.message); b.disabled = false; dirty(); }
   };
 }
@@ -935,7 +940,7 @@ async function viewEdit(x, fromHistory) {
 let CURTAB = 'p';
 function nav(on) { CURTAB = on; return `<div class="nav">${[['p', '商品'], ['o', '訂單'], ['r', '評價'], ['h', '首頁'], ['c', '分類'], ['s', '設定']].map(([k, n]) => `<button data-n="${k}" class="${on === k ? 'on' : ''}">${n}</button>`).join('')}</div>`; }
 // 切換分頁（商品／訂單／評價…）會記在瀏覽器的「上一頁」裡
-function showTab(k) { SEL.clear(); bulkBar([]); view.quick = false; ({ o: viewOrders, r: viewReviews, c: viewCats, s: viewSettings, h: viewHome })[k] ? ({ o: viewOrders, r: viewReviews, c: viewCats, s: viewSettings, h: viewHome })[k]() : viewList(); }
+function showTab(k) { SEL.clear(); bulkBar([]); view.quick = false; view.selOnly = null; ({ o: viewOrders, r: viewReviews, c: viewCats, s: viewSettings, h: viewHome })[k] ? ({ o: viewOrders, r: viewReviews, c: viewCats, s: viewSettings, h: viewHome })[k]() : viewList(); }
 function bindNav() { document.querySelectorAll('.nav button').forEach(b => b.onclick = () => { const k = b.dataset.n; if (k !== CURTAB) history.pushState({ tab: k }, '', location.pathname + location.search); showTab(k); }); }
 
 /* ---------- 看大圖：點縮圖放大，左右切換（手機可以滑） ---------- */
@@ -1130,7 +1135,7 @@ function applyBrand() {
   let ic = document.querySelector('link[rel=icon]');
   if (CFG.logo) { if (!ic) { ic = document.createElement('link'); ic.rel = 'icon'; document.head.appendChild(ic); } ic.href = CFG.logo; }
 }
-$('#home').onclick = e => { e.preventDefault(); if (!pw || !PROD) return; SEL.clear(); bulkBar([]); view.quick = false; view.tab = 'all'; view.q = ''; view.cat = ''; view.pg = 0; viewList(); window.scrollTo(0, 0); };
+$('#home').onclick = e => { e.preventDefault(); if (!pw || !PROD) return; SEL.clear(); bulkBar([]); view.quick = false; view.selOnly = null; view.tab = 'all'; view.q = ''; view.cat = ''; view.pg = 0; viewList(); window.scrollTo(0, 0); };
 
 /* ---------- 設定：Logo、店名 ---------- */
 function viewSettings() {
